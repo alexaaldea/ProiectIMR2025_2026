@@ -58,7 +58,6 @@ sysinfo.txt
 # Crashlytics generated file
 crashlytics-build.properties
 *.fbx
-*.mp4
 *.mov
 *.avi
 *.objlab02/Packages/*.tgz
