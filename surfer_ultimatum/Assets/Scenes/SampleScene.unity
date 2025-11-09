@@ -19792,9 +19792,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   powerUpPrefabs:
   - {fileID: 1692750356630354823, guid: cbd0f39b3175f9e44ad378546447392a, type: 3}
-  - {fileID: 0}
+  - {fileID: 519966950700919672, guid: 85a44dcba8996fe46963a7b03cd68fa8, type: 3}
   spawnInterval: 8
   spawnAreaSize: {x: 3, y: -1, z: 3}
+  player: {fileID: 1676164227}
+  spawnDistanceAhead: 10
 --- !u!4 &492507076
 Transform:
   m_ObjectHideFlags: 0
@@ -52715,6 +52717,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 7696548424635294048, guid: 895f6f3c2d334633b5800312285058d2, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1676164226}
+    - targetCorrespondingSourceObject: {fileID: 7696548424635294048, guid: 895f6f3c2d334633b5800312285058d2, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1676164233}
     - targetCorrespondingSourceObject: {fileID: 9014170783728641055, guid: 895f6f3c2d334633b5800312285058d2, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1749094157}
@@ -52798,7 +52803,7 @@ Rigidbody:
   m_ImplicitCom: 1
   m_ImplicitTensor: 1
   m_UseGravity: 1
-  m_IsKinematic: 0
+  m_IsKinematic: 1
   m_Interpolate: 0
   m_Constraints: 112
   m_CollisionDetection: 1
@@ -52854,6 +52859,23 @@ MonoBehaviour:
   moveSpeed: 3
   gravity: -9.81
   gravityMultiplier: 2
+--- !u!4 &1676164227 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 7696548424635294051, guid: 895f6f3c2d334633b5800312285058d2, type: 3}
+  m_PrefabInstance: {fileID: 1676164207}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1676164233
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1676164208}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 10807e0dbedae38498ccc07a9a0b1091, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &1685381380
 GameObject:
   m_ObjectHideFlags: 0
