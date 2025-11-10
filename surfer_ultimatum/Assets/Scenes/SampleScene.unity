@@ -11647,7 +11647,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   xrOrigin: {fileID: 987528990}
   vrHead: {fileID: 175585014}
-  mapChunkPrefabs: []
+  mapChunkPrefabs:
+  - {fileID: 7054690832611857478, guid: 0a7ce9a4b9f7da24f970acb64d46e7ad, type: 3}
   chunkLength: 12.88
   spawnDistance: 30
   despawnDistance: 30
@@ -11655,6 +11656,7 @@ MonoBehaviour:
   initialMapChunk: {fileID: 1239371305}
   useEndPointAlignment: 1
   initialPoolSize: 3
+  debugMode: 1
 --- !u!43 &1271950282
 Mesh:
   m_ObjectHideFlags: 0

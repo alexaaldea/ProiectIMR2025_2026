@@ -28,6 +28,7 @@ public class VRMapController : MonoBehaviour
     private List<Queue<GameObject>> chunkPools = new List<Queue<GameObject>>();
     private Vector3 movementDirection = Vector3.back;
     private Vector3 nextSpawnPosition;
+    private bool isInitialized = false;
 
     void Start()
     {
@@ -38,6 +39,10 @@ public class VRMapController : MonoBehaviour
         // Set initial spawn position
         if (initialMapChunk != null)
         {
+            // Add the initial chunk to active chunks FIRST
+            activeChunks.Enqueue(initialMapChunk.gameObject);
+            Debug.Log($"Added initial chunk to active chunks: {initialMapChunk.name}");
+
             if (useEndPointAlignment)
             {
                 MapChunkAlignment alignment = initialMapChunk.GetComponent<MapChunkAlignment>();
@@ -65,6 +70,7 @@ public class VRMapController : MonoBehaviour
         }
 
         SpawnInitialChunks();
+        isInitialized = true;
         Debug.Log($"Initial setup complete. Active chunks: {activeChunks.Count}");
     }
 
@@ -150,6 +156,8 @@ public class VRMapController : MonoBehaviour
 
     void Update()
     {
+        if (!isInitialized) return;
+
         if (vrHead == null)
         {
             Debug.LogWarning("VR Head is null in Update!");
@@ -182,16 +190,11 @@ public class VRMapController : MonoBehaviour
     void CheckSpawning()
     {
         float headZ = vrHead.position.z;
-        float triggerZ = headZ + spawnDistance;
 
-        if (debugMode)
+        // FIXED: This is the key fix - check if next spawn position is ahead of player + spawn distance
+        if (nextSpawnPosition.z < headZ + spawnDistance)
         {
-            Debug.Log($"Head Z: {headZ}, Trigger Z: {triggerZ}, Next Spawn Z: {nextSpawnPosition.z}");
-        }
-
-        if (triggerZ > nextSpawnPosition.z)
-        {
-            Debug.Log($"Spawning triggered! Head at {headZ}, need chunk at {nextSpawnPosition.z}");
+            Debug.Log($"Spawning triggered! Head at {headZ}, Next Spawn at {nextSpawnPosition.z}");
             SpawnChunk();
         }
     }
@@ -211,17 +214,31 @@ public class VRMapController : MonoBehaviour
                 continue;
             }
 
-            float chunkZ = firstChunk.transform.position.z;
+            float chunkEndZ = GetChunkEndZ(firstChunk);
 
-            if (chunkZ < headZ - despawnDistance)
+            if (chunkEndZ < headZ - despawnDistance)
             {
-                Debug.Log($"Despawning chunk at Z: {chunkZ}");
+                Debug.Log($"Despawning chunk at Z: {chunkEndZ}");
                 DespawnOldestChunk();
             }
             else
             {
                 break;
             }
+        }
+    }
+
+    float GetChunkEndZ(GameObject chunk)
+    {
+        MapChunkAlignment alignment = chunk.GetComponent<MapChunkAlignment>();
+        if (alignment != null)
+        {
+            return alignment.GetWorldEndPoint().z;
+        }
+        else
+        {
+            // Estimate end position based on chunk length
+            return chunk.transform.position.z + chunkLength;
         }
     }
 
@@ -242,23 +259,36 @@ public class VRMapController : MonoBehaviour
             return;
         }
 
-        // Position the chunk
-        chunk.transform.position = nextSpawnPosition;
+        // FIXED: Position the chunk correctly
+        MapChunkAlignment chunkAlignment = chunk.GetComponent<MapChunkAlignment>();
+
+        if (chunkAlignment != null && useEndPointAlignment)
+        {
+            // Position the chunk so its start point aligns with the next spawn position
+            Vector3 startPointWorld = chunkAlignment.GetWorldStartPoint();
+            Vector3 localOffset = startPointWorld - chunk.transform.position;
+            chunk.transform.position = nextSpawnPosition - localOffset;
+        }
+        else
+        {
+            // Simple positioning
+            chunk.transform.position = nextSpawnPosition;
+        }
+
         chunk.SetActive(true);
         activeChunks.Enqueue(chunk);
 
         Debug.Log($"Spawned chunk '{chunk.name}' at {chunk.transform.position}");
 
-        // Update next spawn position
-        MapChunkAlignment alignment = chunk.GetComponent<MapChunkAlignment>();
-        if (alignment != null)
+        // FIXED: Update next spawn position correctly
+        if (chunkAlignment != null && useEndPointAlignment)
         {
-            nextSpawnPosition = alignment.GetWorldEndPoint();
+            nextSpawnPosition = chunkAlignment.GetWorldEndPoint();
             Debug.Log($"Next spawn position (from alignment): {nextSpawnPosition}");
         }
         else
         {
-            nextSpawnPosition += Vector3.forward * chunkLength;
+            nextSpawnPosition = chunk.transform.position + Vector3.forward * chunkLength;
             Debug.Log($"Next spawn position (from length): {nextSpawnPosition}");
         }
     }
@@ -273,19 +303,36 @@ public class VRMapController : MonoBehaviour
 
         Queue<GameObject> pool = chunkPools[chunkType];
 
-        if (pool.Count > 0)
+        // FIXED: Better pool retrieval
+        GameObject chunk = null;
+        Queue<GameObject> newPool = new Queue<GameObject>();
+
+        while (pool.Count > 0)
         {
-            GameObject chunk = pool.Dequeue();
-            Debug.Log($"Retrieved chunk from pool: {chunk.name}");
-            return chunk;
+            GameObject testChunk = pool.Dequeue();
+            if (testChunk != null && !testChunk.activeInHierarchy)
+            {
+                chunk = testChunk;
+                break;
+            }
+            newPool.Enqueue(testChunk);
         }
-        else
+
+        // Put remaining chunks back in pool
+        while (newPool.Count > 0)
         {
-            Debug.Log("Pool empty, creating new chunk");
-            GameObject newChunk = Instantiate(mapChunkPrefabs[chunkType]);
-            newChunk.transform.SetParent(transform);
-            return newChunk;
+            pool.Enqueue(newPool.Dequeue());
         }
+
+        // If no available chunk found in pool, create a new one
+        if (chunk == null)
+        {
+            Debug.Log("No available chunk in pool, creating new one");
+            chunk = Instantiate(mapChunkPrefabs[chunkType]);
+            chunk.transform.SetParent(transform);
+        }
+
+        return chunk;
     }
 
     void DespawnOldestChunk()
@@ -294,7 +341,7 @@ public class VRMapController : MonoBehaviour
         {
             GameObject chunkToDespawn = activeChunks.Dequeue();
 
-            if (chunkToDespawn != null)
+            if (chunkToDespawn != null && chunkToDespawn != initialMapChunk.gameObject) // Don't despawn initial chunk
             {
                 for (int i = 0; i < mapChunkPrefabs.Length; i++)
                 {
@@ -305,6 +352,11 @@ public class VRMapController : MonoBehaviour
                     }
                 }
             }
+            else if (chunkToDespawn == initialMapChunk.gameObject)
+            {
+                // Re-add initial chunk to keep it in the system
+                activeChunks.Enqueue(chunkToDespawn);
+            }
         }
     }
 
@@ -313,8 +365,13 @@ public class VRMapController : MonoBehaviour
         if (chunkType < 0 || chunkType >= chunkPools.Count) return;
 
         chunk.SetActive(false);
-        chunkPools[chunkType].Enqueue(chunk);
-        Debug.Log($"Returned chunk to pool: {chunk.name}");
+
+        // FIXED: Check if chunk is already in pool before adding
+        if (!chunkPools[chunkType].Contains(chunk))
+        {
+            chunkPools[chunkType].Enqueue(chunk);
+            Debug.Log($"Returned chunk to pool: {chunk.name}");
+        }
     }
 
     void OnDrawGizmos()
@@ -329,17 +386,17 @@ public class VRMapController : MonoBehaviour
         if (vrHead != null)
         {
             Gizmos.color = Color.yellow;
-            Vector3 spawnTriggerPos = vrHead.position + Vector3.forward * spawnDistance;
+            Vector3 spawnTriggerPos = new Vector3(vrHead.position.x, vrHead.position.y, vrHead.position.z + spawnDistance);
             Gizmos.DrawWireSphere(spawnTriggerPos, 0.5f);
             Gizmos.DrawLine(vrHead.position, spawnTriggerPos);
         }
 
 #if UNITY_EDITOR
-        UnityEditor.Handles.Label(nextSpawnPosition + Vector3.up * 2f, $"Next Spawn\n{nextSpawnPosition.z}");
+        UnityEditor.Handles.Label(nextSpawnPosition + Vector3.up * 2f, $"Next Spawn\n{nextSpawnPosition.z:F1}");
         if (vrHead != null)
         {
-            Vector3 spawnTriggerPos = vrHead.position + Vector3.forward * spawnDistance;
-            UnityEditor.Handles.Label(spawnTriggerPos + Vector3.up * 2f, $"Spawn Trigger\n{spawnTriggerPos.z}");
+            Vector3 spawnTriggerPos = new Vector3(vrHead.position.x, vrHead.position.y, vrHead.position.z + spawnDistance);
+            UnityEditor.Handles.Label(spawnTriggerPos + Vector3.up * 2f, $"Spawn Trigger\n{spawnTriggerPos.z:F1}");
         }
 #endif
     }
