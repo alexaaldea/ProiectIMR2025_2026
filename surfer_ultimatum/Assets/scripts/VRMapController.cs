@@ -10,16 +10,21 @@ public class VRMapController : MonoBehaviour
     [Header("Chunk Settings")]
     public GameObject[] mapChunkPrefabs;
     public float chunkLength = 12.88f;
-    public float spawnDistance = 25f;
-    public float despawnDistance = 25f;
-    public float movementSpeed = 5f;
+    public float movementSpeed = 8f;
+
+    [Header("Timer Spawning Settings")]
+    public float spawnInterval = 1.0f; // Spawn a chunk every 1 second
+    public int maxActiveChunks = 12; // Maximum number of active chunks
+
+    [Header("Despawning Settings")]
+    public float despawnDistance = 30f; // Despawn chunks this far behind player
 
     [Header("Alignment Settings")]
     public Transform initialMapChunk;
     public bool useEndPointAlignment = true;
 
     [Header("Pooling Settings")]
-    public int initialPoolSize = 3;
+    public int initialPoolSize = 8;
 
     [Header("Debug")]
     public bool debugMode = true;
@@ -29,6 +34,8 @@ public class VRMapController : MonoBehaviour
     private Vector3 movementDirection = Vector3.back;
     private Vector3 nextSpawnPosition;
     private bool isInitialized = false;
+    private float fixedPlayerZ = 0f;
+    private float spawnTimer = 0f;
 
     void Start()
     {
@@ -36,10 +43,16 @@ public class VRMapController : MonoBehaviour
         FindVRComponents();
         InitializeChunkPools();
 
+        // Set fixed player position
+        if (vrHead != null)
+        {
+            fixedPlayerZ = vrHead.position.z;
+            Debug.Log($"Fixed player Z position: {fixedPlayerZ}");
+        }
+
         // Set initial spawn position
         if (initialMapChunk != null)
         {
-            // Add the initial chunk to active chunks FIRST
             activeChunks.Enqueue(initialMapChunk.gameObject);
             Debug.Log($"Added initial chunk to active chunks: {initialMapChunk.name}");
 
@@ -49,42 +62,39 @@ public class VRMapController : MonoBehaviour
                 if (alignment != null)
                 {
                     nextSpawnPosition = alignment.GetWorldEndPoint();
-                    Debug.Log($"Using alignment end point: {nextSpawnPosition}");
                 }
                 else
                 {
                     nextSpawnPosition = initialMapChunk.position + Vector3.forward * chunkLength;
-                    Debug.Log($"No alignment script, using chunk length: {nextSpawnPosition}");
                 }
             }
             else
             {
                 nextSpawnPosition = initialMapChunk.position + Vector3.forward * chunkLength;
-                Debug.Log($"Using simple positioning: {nextSpawnPosition}");
             }
         }
         else
         {
-            nextSpawnPosition = Vector3.zero;
-            Debug.LogWarning("No initial map chunk assigned! Using default position.");
+            nextSpawnPosition = Vector3.forward * 20f;
         }
 
+        Debug.Log($"Initial spawn position: {nextSpawnPosition}");
+
+        // Spawn initial chunks immediately
         SpawnInitialChunks();
         isInitialized = true;
-        Debug.Log($"Initial setup complete. Active chunks: {activeChunks.Count}");
+
+        Debug.Log($"Setup complete. Active chunks: {activeChunks.Count}, Next spawn at: {nextSpawnPosition.z}");
     }
 
     void FindVRComponents()
     {
-        Debug.Log("Finding VR components...");
-
         if (xrOrigin == null)
         {
             xrOrigin = GameObject.Find("XR Origin")?.transform;
             if (xrOrigin == null)
             {
                 xrOrigin = GameObject.Find("XRInteractionSetup")?.transform;
-                Debug.Log(xrOrigin != null ? "Found XRInteractionSetup" : "No XR Origin found");
             }
         }
 
@@ -96,20 +106,16 @@ public class VRMapController : MonoBehaviour
                 Camera cam = FindObjectOfType<Camera>();
                 if (cam != null) vrHead = cam.transform;
             }
-            Debug.Log(vrHead != null ? $"Found VR Head: {vrHead.name}" : "No VR Head found");
         }
 
         if (vrHead == null)
         {
             vrHead = transform;
-            Debug.LogWarning("VR Head not found, using controller transform");
         }
     }
 
     void InitializeChunkPools()
     {
-        Debug.Log($"Initializing pools with {mapChunkPrefabs.Length} prefab types");
-
         if (mapChunkPrefabs.Length == 0)
         {
             Debug.LogError("No map chunk prefabs assigned!");
@@ -132,14 +138,12 @@ public class VRMapController : MonoBehaviour
                 chunk.SetActive(false);
                 chunk.transform.SetParent(transform);
                 pool.Enqueue(chunk);
-
-                if (debugMode) Debug.Log($"Created pool object: {chunk.name}");
             }
 
             chunkPools.Add(pool);
         }
 
-        Debug.Log($"Created {chunkPools.Count} pools");
+        Debug.Log($"Created {chunkPools.Count} pools with {initialPoolSize} chunks each");
     }
 
     void SpawnInitialChunks()
@@ -158,14 +162,8 @@ public class VRMapController : MonoBehaviour
     {
         if (!isInitialized) return;
 
-        if (vrHead == null)
-        {
-            Debug.LogWarning("VR Head is null in Update!");
-            return;
-        }
-
         MoveChunks();
-        CheckSpawning();
+        CheckTimerSpawning();
         CheckDespawning();
 
         // Debug controls
@@ -173,6 +171,30 @@ public class VRMapController : MonoBehaviour
         {
             Debug.Log("Manual spawn triggered");
             SpawnChunk();
+        }
+
+        if (Input.GetKeyDown(KeyCode.Equals))
+        {
+            movementSpeed += 2f;
+            Debug.Log($"Speed increased to: {movementSpeed}");
+        }
+
+        if (Input.GetKeyDown(KeyCode.Minus))
+        {
+            movementSpeed = Mathf.Max(1f, movementSpeed - 2f);
+            Debug.Log($"Speed decreased to: {movementSpeed}");
+        }
+
+        if (Input.GetKeyDown(KeyCode.T))
+        {
+            spawnInterval = Mathf.Max(0.1f, spawnInterval - 0.1f);
+            Debug.Log($"Spawn interval decreased to: {spawnInterval:F1}s");
+        }
+
+        if (Input.GetKeyDown(KeyCode.Y))
+        {
+            spawnInterval += 0.1f;
+            Debug.Log($"Spawn interval increased to: {spawnInterval:F1}s");
         }
     }
 
@@ -187,15 +209,25 @@ public class VRMapController : MonoBehaviour
         }
     }
 
-    void CheckSpawning()
+    void CheckTimerSpawning()
     {
-        float headZ = vrHead.position.z;
+        // Timer-based spawning - spawn a chunk every spawnInterval seconds
+        spawnTimer += Time.deltaTime;
 
-        // FIXED: This is the key fix - check if next spawn position is ahead of player + spawn distance
-        if (nextSpawnPosition.z < headZ + spawnDistance)
+        if (spawnTimer >= spawnInterval)
         {
-            Debug.Log($"Spawning triggered! Head at {headZ}, Next Spawn at {nextSpawnPosition.z}");
-            SpawnChunk();
+            spawnTimer = 0f; // Reset timer
+
+            // Only spawn if we haven't reached the maximum chunk limit
+            if (activeChunks.Count < maxActiveChunks)
+            {
+                if (debugMode) Debug.Log($"Timer spawn - Chunk {activeChunks.Count + 1}/{maxActiveChunks} at interval {spawnInterval:F1}s");
+                SpawnChunk();
+            }
+            else
+            {
+                if (debugMode) Debug.Log($"Max chunks reached ({maxActiveChunks}), waiting for despawning...");
+            }
         }
     }
 
@@ -203,28 +235,54 @@ public class VRMapController : MonoBehaviour
     {
         if (activeChunks.Count == 0) return;
 
-        float headZ = vrHead.position.z;
+        // Check all chunks and mark ones that should be despawned
+        List<GameObject> chunksToDespawn = new List<GameObject>();
+
+        foreach (GameObject chunk in activeChunks)
+        {
+            if (chunk == null || !chunk.activeInHierarchy) continue;
+
+            float chunkEndZ = GetChunkEndZ(chunk);
+
+            // Despawn chunk if it's far behind the player
+            if (chunkEndZ < fixedPlayerZ - despawnDistance)
+            {
+                chunksToDespawn.Add(chunk);
+            }
+        }
+
+        // Despawn marked chunks
+        foreach (GameObject chunk in chunksToDespawn)
+        {
+            if (debugMode) Debug.Log($"Despawning chunk at Z: {GetChunkEndZ(chunk):F1}");
+            DespawnSpecificChunk(chunk);
+        }
+    }
+
+    void DespawnSpecificChunk(GameObject chunkToDespawn)
+    {
+        Queue<GameObject> newQueue = new Queue<GameObject>();
+        bool found = false;
 
         while (activeChunks.Count > 0)
         {
-            GameObject firstChunk = activeChunks.Peek();
-            if (firstChunk == null || !firstChunk.activeInHierarchy)
+            GameObject chunk = activeChunks.Dequeue();
+            if (chunk == chunkToDespawn)
             {
-                activeChunks.Dequeue();
-                continue;
-            }
-
-            float chunkEndZ = GetChunkEndZ(firstChunk);
-
-            if (chunkEndZ < headZ - despawnDistance)
-            {
-                Debug.Log($"Despawning chunk at Z: {chunkEndZ}");
-                DespawnOldestChunk();
+                found = true;
+                ReturnChunkToPoolByName(chunk);
             }
             else
             {
-                break;
+                newQueue.Enqueue(chunk);
             }
+        }
+
+        activeChunks = newQueue;
+
+        if (!found && debugMode)
+        {
+            Debug.LogWarning("Tried to despawn chunk that wasn't in active chunks");
         }
     }
 
@@ -237,7 +295,6 @@ public class VRMapController : MonoBehaviour
         }
         else
         {
-            // Estimate end position based on chunk length
             return chunk.transform.position.z + chunkLength;
         }
     }
@@ -259,103 +316,74 @@ public class VRMapController : MonoBehaviour
             return;
         }
 
-        // FIXED: Position the chunk correctly
+        // Position the chunk
         MapChunkAlignment chunkAlignment = chunk.GetComponent<MapChunkAlignment>();
 
         if (chunkAlignment != null && useEndPointAlignment)
         {
-            // Position the chunk so its start point aligns with the next spawn position
             Vector3 startPointWorld = chunkAlignment.GetWorldStartPoint();
             Vector3 localOffset = startPointWorld - chunk.transform.position;
             chunk.transform.position = nextSpawnPosition - localOffset;
         }
         else
         {
-            // Simple positioning
             chunk.transform.position = nextSpawnPosition;
         }
 
         chunk.SetActive(true);
         activeChunks.Enqueue(chunk);
 
-        Debug.Log($"Spawned chunk '{chunk.name}' at {chunk.transform.position}");
+        if (debugMode) Debug.Log($"Spawned '{chunk.name}' at Z: {chunk.transform.position.z:F1} (Total active: {activeChunks.Count})");
 
-        // FIXED: Update next spawn position correctly
+        // Update next spawn position
         if (chunkAlignment != null && useEndPointAlignment)
         {
             nextSpawnPosition = chunkAlignment.GetWorldEndPoint();
-            Debug.Log($"Next spawn position (from alignment): {nextSpawnPosition}");
         }
         else
         {
             nextSpawnPosition = chunk.transform.position + Vector3.forward * chunkLength;
-            Debug.Log($"Next spawn position (from length): {nextSpawnPosition}");
         }
     }
 
     GameObject GetChunkFromPool(int chunkType)
     {
-        if (chunkType < 0 || chunkType >= chunkPools.Count)
-        {
-            Debug.LogError($"Invalid chunk type: {chunkType}");
-            return null;
-        }
+        if (chunkType < 0 || chunkType >= chunkPools.Count) return null;
 
         Queue<GameObject> pool = chunkPools[chunkType];
 
-        // FIXED: Better pool retrieval
-        GameObject chunk = null;
-        Queue<GameObject> newPool = new Queue<GameObject>();
-
-        while (pool.Count > 0)
+        // Look for available chunk in pool
+        foreach (GameObject chunk in pool)
         {
-            GameObject testChunk = pool.Dequeue();
-            if (testChunk != null && !testChunk.activeInHierarchy)
+            if (chunk != null && !chunk.activeInHierarchy)
             {
-                chunk = testChunk;
-                break;
+                return chunk;
             }
-            newPool.Enqueue(testChunk);
-        }
-
-        // Put remaining chunks back in pool
-        while (newPool.Count > 0)
-        {
-            pool.Enqueue(newPool.Dequeue());
         }
 
         // If no available chunk found in pool, create a new one
-        if (chunk == null)
-        {
-            Debug.Log("No available chunk in pool, creating new one");
-            chunk = Instantiate(mapChunkPrefabs[chunkType]);
-            chunk.transform.SetParent(transform);
-        }
-
-        return chunk;
+        if (debugMode) Debug.Log("No available chunk in pool, creating new one");
+        GameObject newChunk = Instantiate(mapChunkPrefabs[chunkType]);
+        newChunk.transform.SetParent(transform);
+        return newChunk;
     }
 
-    void DespawnOldestChunk()
+    void ReturnChunkToPoolByName(GameObject chunk)
     {
-        if (activeChunks.Count > 0)
+        // Don't pool the initial chunk from hierarchy - destroy it instead
+        if (chunk == initialMapChunk?.gameObject)
         {
-            GameObject chunkToDespawn = activeChunks.Dequeue();
+            if (debugMode) Debug.Log("Destroying initial hierarchy chunk (not pooling)");
+            Destroy(chunk);
+            return;
+        }
 
-            if (chunkToDespawn != null && chunkToDespawn != initialMapChunk.gameObject) // Don't despawn initial chunk
+        for (int i = 0; i < mapChunkPrefabs.Length; i++)
+        {
+            if (chunk.name.StartsWith(mapChunkPrefabs[i].name))
             {
-                for (int i = 0; i < mapChunkPrefabs.Length; i++)
-                {
-                    if (chunkToDespawn.name.StartsWith(mapChunkPrefabs[i].name))
-                    {
-                        ReturnChunkToPool(i, chunkToDespawn);
-                        break;
-                    }
-                }
-            }
-            else if (chunkToDespawn == initialMapChunk.gameObject)
-            {
-                // Re-add initial chunk to keep it in the system
-                activeChunks.Enqueue(chunkToDespawn);
+                ReturnChunkToPool(i, chunk);
+                break;
             }
         }
     }
@@ -366,38 +394,63 @@ public class VRMapController : MonoBehaviour
 
         chunk.SetActive(false);
 
-        // FIXED: Check if chunk is already in pool before adding
         if (!chunkPools[chunkType].Contains(chunk))
         {
             chunkPools[chunkType].Enqueue(chunk);
-            Debug.Log($"Returned chunk to pool: {chunk.name}");
+            if (debugMode) Debug.Log($"Returned chunk to pool: {chunk.name}");
         }
     }
 
     void OnDrawGizmos()
     {
-        if (!debugMode) return;
+        if (!debugMode || !Application.isPlaying) return;
 
         // Draw spawn position
         Gizmos.color = Color.red;
         Gizmos.DrawWireSphere(nextSpawnPosition, 1f);
 
-        // Draw spawn range
-        if (vrHead != null)
-        {
-            Gizmos.color = Color.yellow;
-            Vector3 spawnTriggerPos = new Vector3(vrHead.position.x, vrHead.position.y, vrHead.position.z + spawnDistance);
-            Gizmos.DrawWireSphere(spawnTriggerPos, 0.5f);
-            Gizmos.DrawLine(vrHead.position, spawnTriggerPos);
-        }
+        // Draw despawn range
+        Gizmos.color = Color.magenta;
+        Vector3 despawnTriggerPos = new Vector3(0, 0, fixedPlayerZ - despawnDistance);
+        Gizmos.DrawWireSphere(despawnTriggerPos, 0.5f);
+
+        // Draw player position
+        Gizmos.color = Color.green;
+        Vector3 playerPos = new Vector3(0, 0, fixedPlayerZ);
+        Gizmos.DrawWireSphere(playerPos, 0.3f);
 
 #if UNITY_EDITOR
         UnityEditor.Handles.Label(nextSpawnPosition + Vector3.up * 2f, $"Next Spawn\n{nextSpawnPosition.z:F1}");
-        if (vrHead != null)
-        {
-            Vector3 spawnTriggerPos = new Vector3(vrHead.position.x, vrHead.position.y, vrHead.position.z + spawnDistance);
-            UnityEditor.Handles.Label(spawnTriggerPos + Vector3.up * 2f, $"Spawn Trigger\n{spawnTriggerPos.z:F1}");
-        }
+        
+        Vector3 despawnLabelPos = new Vector3(0, 0, fixedPlayerZ - despawnDistance);
+        UnityEditor.Handles.Label(despawnLabelPos + Vector3.up * 2f, $"Despawn\n{despawnLabelPos.z:F1}");
+        
+        Vector3 playerLabelPos = new Vector3(0, 0, fixedPlayerZ);
+        UnityEditor.Handles.Label(playerLabelPos + Vector3.up * 2f, $"Player\n{playerLabelPos.z:F1}");
+        
+        // Show timer info
+        UnityEditor.Handles.Label(playerLabelPos + Vector3.up * 4f, $"Timer: {spawnTimer:F1}/{spawnInterval:F1}s\nChunks: {activeChunks.Count}/{maxActiveChunks}");
 #endif
+    }
+
+    // Public methods for game control
+    public void SetMovementSpeed(float newSpeed)
+    {
+        movementSpeed = newSpeed;
+    }
+
+    public void SetSpawnInterval(float newInterval)
+    {
+        spawnInterval = Mathf.Max(0.1f, newInterval);
+    }
+
+    public void StopMovement()
+    {
+        movementSpeed = 0f;
+    }
+
+    public void StartMovement()
+    {
+        movementSpeed = 8f;
     }
 }
