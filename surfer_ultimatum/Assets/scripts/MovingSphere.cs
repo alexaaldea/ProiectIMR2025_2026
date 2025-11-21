@@ -41,21 +41,29 @@ public class MovingSphere : MonoBehaviour
             DestroySphere();
         }
     }
-
+    
     private void OnTriggerEnter(Collider other)
+{
+    if (hasCollided) return;
+
+    XRCharacterPowerUpHandler powerUpHandler = other.GetComponent<XRCharacterPowerUpHandler>();
+    if (powerUpHandler != null && powerUpHandler.HasShield())
     {
-        if (hasCollided) return;
-
-        if (other.GetComponent<CharacterController>() != null)
-        {
-            hasCollided = true;
-            Debug.Log("COLLISION! Sphere hit the player!");
-
-            ShowNotification("You were hit by a sphere!");
-
-            DestroySphere();
-        }
+        hasCollided = true;
+        Debug.Log("Sphere hit the player but shield absorbed it!");
+        DestroySphere();
+        return;
     }
+
+    if (other.GetComponent<CharacterController>() != null)
+    {
+        hasCollided = true;
+        Debug.Log("COLLISION! Sphere hit the player!");
+        ShowNotification("You were hit by a sphere!");
+        DestroySphere();
+    }
+}
+
 
     private void ShowNotification(string message)
     {
