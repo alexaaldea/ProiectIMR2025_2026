@@ -3,7 +3,7 @@ using UnityEngine;
 public class SphereSpawner : MonoBehaviour
 {
     [Header("Spawn Settings")]
-    [SerializeField] private GameObject spherePrefab;
+    [SerializeField] private GameObject[] prefabs;
     [SerializeField] private float spawnInterval = 2f;
     [SerializeField] private int maxSpheres = 10; 
 
@@ -63,9 +63,10 @@ public class SphereSpawner : MonoBehaviour
 
         GameObject sphere;
 
-        if (spherePrefab != null)
+        if (prefabs != null || prefabs.Length > 0)
         {
-            sphere = Instantiate(spherePrefab, spawnPosition, Quaternion.identity);
+            int rand = Random.Range(0, prefabs.Length-1);
+            sphere = Instantiate(prefabs[rand], spawnPosition, Quaternion.identity);
         }
         else
         {
