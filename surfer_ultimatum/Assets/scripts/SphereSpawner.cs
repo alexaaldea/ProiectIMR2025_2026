@@ -5,7 +5,7 @@ public class SphereSpawner : MonoBehaviour
     [Header("Spawn Settings")]
     [SerializeField] private GameObject[] prefabs;
     [SerializeField] private float spawnInterval = 2f;
-    [SerializeField] private int maxSpheres = 10; 
+    [SerializeField] private int maxSpheres = 10;
 
     [Header("Spawn Area")]
     [SerializeField] private Vector3 spawnAreaSize = new Vector3(10f, 2f, 10f);
@@ -14,7 +14,7 @@ public class SphereSpawner : MonoBehaviour
     [Header("Movement")]
     [SerializeField] private float sphereSpeed = 5f;
     [SerializeField] private bool moveTowardsPlayer = true;
-    [SerializeField] private Vector3 fixedDirection = Vector3.forward; 
+    [SerializeField] private Vector3 fixedDirection = Vector3.forward;
 
     [Header("Sphere Properties")]
     [SerializeField] private float sphereSize = 0.5f;
@@ -22,6 +22,7 @@ public class SphereSpawner : MonoBehaviour
     [SerializeField] private float sphereLifetime = 10f;
 
     private Transform playerTransform;
+    private Camera xrCamera;
     private float nextSpawnTime;
     private int currentSphereCount = 0;
 
@@ -31,6 +32,16 @@ public class SphereSpawner : MonoBehaviour
         if (xrOrigin != null)
         {
             playerTransform = xrOrigin.transform;
+
+            xrCamera = xrOrigin.GetComponentInChildren<Camera>();
+            if (xrCamera != null)
+            {
+                Debug.Log("Found XR Camera: " + xrCamera.name);
+            }
+            else
+            {
+                Debug.LogWarning("XR Origin found but no camera detected!");
+            }
         }
         else
         {
@@ -38,8 +49,6 @@ public class SphereSpawner : MonoBehaviour
         }
 
         nextSpawnTime = Time.time + spawnInterval;
-
-        Debug.Log("Sphere Spawner initialized. Will spawn spheres every " + spawnInterval + " seconds");
     }
 
     void Update()
@@ -62,10 +71,9 @@ public class SphereSpawner : MonoBehaviour
         Vector3 spawnPosition = transform.position + randomOffset;
 
         GameObject sphere;
-
-        if (prefabs != null || prefabs.Length > 0)
+        if (prefabs != null && prefabs.Length > 0) // Fixed: added null check
         {
-            int rand = Random.Range(0, prefabs.Length-1);
+            int rand = Random.Range(0, prefabs.Length); // Fixed: was prefabs.Length-1, should be prefabs.Length
             sphere = Instantiate(prefabs[rand], spawnPosition, Quaternion.identity);
         }
         else
@@ -88,10 +96,20 @@ public class SphereSpawner : MonoBehaviour
         movingSphere.lifetime = sphereLifetime;
         movingSphere.spawner = this;
 
-        if (moveTowardsPlayer && playerTransform != null)
+        // Modified: Prioritize moving towards XR camera if available, otherwise XR Origin
+        if (moveTowardsPlayer)
         {
-            Vector3 directionToPlayer = (playerTransform.position - spawnPosition).normalized;
-            movingSphere.direction = directionToPlayer;
+            Transform targetTransform = xrCamera != null ? xrCamera.transform : playerTransform;
+
+            if (targetTransform != null)
+            {
+                Vector3 directionToPlayer = (targetTransform.position - spawnPosition).normalized;
+                movingSphere.direction = directionToPlayer;
+            }
+            else
+            {
+                movingSphere.direction = fixedDirection.normalized;
+            }
         }
         else
         {
@@ -99,8 +117,6 @@ public class SphereSpawner : MonoBehaviour
         }
 
         currentSphereCount++;
-
-        Debug.Log("Spawned sphere at " + spawnPosition + " moving towards " + movingSphere.direction);
     }
 
     public void OnSphereDestroyed()

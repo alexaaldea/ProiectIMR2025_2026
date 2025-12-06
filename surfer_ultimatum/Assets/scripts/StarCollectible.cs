@@ -55,13 +55,26 @@ public class StarCollectible : MonoBehaviour
     private void OnTriggerEnter(Collider other)
     {
         if (!isActive) return;
-        if (other.CompareTag("Player"))
+
+        // Check for XR Camera collision tracker
+        XRCameraCollisionTracker cameraTracker = other.GetComponent<XRCameraCollisionTracker>();
+        if (cameraTracker != null)
+        {
             Collect();
+            return;
+        }
+
+        // Legacy check for Player tag (keep for backward compatibility)
+        if (other.CompareTag("Player"))
+        {
+            Collect();
+        }
     }
 
     public void Collect()
     {
         if (!isActive) return;
+
         isActive = false;
         CoinGameManager.Instance.AddCoin(1);
 

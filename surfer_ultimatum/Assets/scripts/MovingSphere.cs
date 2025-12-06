@@ -13,22 +13,19 @@ public class MovingSphere : MonoBehaviour
     void Start()
     {
         spawnTime = Time.time;
-
         Rigidbody rb = GetComponent<Rigidbody>();
         if (rb == null)
         {
             rb = gameObject.AddComponent<Rigidbody>();
         }
-
-        rb.useGravity = false; 
-        rb.isKinematic = true; 
+        rb.useGravity = false;
+        rb.isKinematic = true;
 
         SphereCollider collider = GetComponent<SphereCollider>();
         if (collider == null)
         {
             collider = gameObject.AddComponent<SphereCollider>();
         }
-
         collider.isTrigger = true;
     }
 
@@ -41,34 +38,42 @@ public class MovingSphere : MonoBehaviour
             DestroySphere();
         }
     }
-    
+
     private void OnTriggerEnter(Collider other)
-{
-    if (hasCollided) return;
-
-    XRCharacterPowerUpHandler powerUpHandler = other.GetComponent<XRCharacterPowerUpHandler>();
-    if (powerUpHandler != null && powerUpHandler.HasShield())
     {
-        hasCollided = true;
-        Debug.Log("Sphere hit the player but shield absorbed it!");
-        DestroySphere();
-        return;
-    }
+        if (hasCollided) return;
 
-    if (other.GetComponent<CharacterController>() != null)
-    {
-        hasCollided = true;
-        Debug.Log("COLLISION! Sphere hit the player!");
-        ShowNotification("You were hit by a sphere!");
-        DestroySphere();
-    }
-}
+        // Check for shield on XR camera
+        XRCharacterPowerUpHandler powerUpHandler = other.GetComponent<XRCharacterPowerUpHandler>();
+        if (powerUpHandler != null && powerUpHandler.HasShield())
+        {
+            hasCollided = true;
+            DestroySphere();
+            return;
+        }
 
+        // Check for XR Camera collision tracker
+        XRCameraCollisionTracker cameraTracker = other.GetComponent<XRCameraCollisionTracker>();
+        if (cameraTracker != null)
+        {
+            hasCollided = true;
+            ShowNotification("You were hit by a sphere!");
+            DestroySphere();
+            return;
+        }
+
+        // Legacy check for CharacterController (keep for backward compatibility)
+        if (other.GetComponent<CharacterController>() != null)
+        {
+            hasCollided = true;
+            ShowNotification("You were hit by a sphere!");
+            DestroySphere();
+        }
+    }
 
     private void ShowNotification(string message)
     {
         Debug.LogWarning("*** " + message + " ***");
-
     }
 
     private void DestroySphere()
@@ -77,7 +82,6 @@ public class MovingSphere : MonoBehaviour
         {
             spawner.OnSphereDestroyed();
         }
-
         Destroy(gameObject);
     }
 }

@@ -27,7 +27,7 @@ public class VRMapController : MonoBehaviour
     public int initialPoolSize = 8;
 
     [Header("Debug")]
-    public bool debugMode = true;
+    public bool debugMode = false;
 
     private Queue<GameObject> activeChunks = new Queue<GameObject>();
     private List<Queue<GameObject>> chunkPools = new List<Queue<GameObject>>();
@@ -223,10 +223,6 @@ public class VRMapController : MonoBehaviour
             {
                 if (debugMode) Debug.Log($"Timer spawn - Chunk {activeChunks.Count + 1}/{maxActiveChunks} at interval {spawnInterval:F1}s");
                 SpawnChunk();
-            }
-            else
-            {
-                if (debugMode) Debug.Log($"Max chunks reached ({maxActiveChunks}), waiting for despawning...");
             }
         }
     }
