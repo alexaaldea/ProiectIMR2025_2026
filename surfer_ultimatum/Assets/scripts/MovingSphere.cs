@@ -58,6 +58,7 @@ public class MovingSphere : MonoBehaviour
         {
             hasCollided = true;
             ShowNotification("You were hit by a sphere!");
+            GameManager.Instance.GameOver();
             DestroySphere();
             return;
         }
@@ -67,6 +68,7 @@ public class MovingSphere : MonoBehaviour
         {
             hasCollided = true;
             ShowNotification("You were hit by a sphere!");
+            GameManager.Instance.GameOver();
             DestroySphere();
         }
     }

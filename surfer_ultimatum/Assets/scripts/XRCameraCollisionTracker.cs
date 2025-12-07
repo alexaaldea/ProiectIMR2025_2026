@@ -112,7 +112,9 @@ public class XRCameraCollisionTracker : MonoBehaviour
         if (logCollisions)
         {
             Debug.LogWarning($"*** CAMERA HIT WALL *** {collision.gameObject.name}");
+            
         }
+        
 
         OnCameraCollisionEnter?.Invoke(collision);
     }
