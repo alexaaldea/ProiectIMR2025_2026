@@ -87,6 +87,25 @@ public class VRMapController : MonoBehaviour
         Debug.Log($"Setup complete. Active chunks: {activeChunks.Count}, Next spawn at: {nextSpawnPosition.z}");
     }
 
+    public void ResetMovement()
+{
+    // If your script uses speed, reset it here safely
+    if (this.GetType().GetField("speed") != null)
+    {
+        this.GetType().GetField("speed").SetValue(this, 2f); // default speed
+    }
+
+    // If your script has a bool that controls movement, reset it
+    if (this.GetType().GetField("isMoving") != null)
+    {
+        this.GetType().GetField("isMoving").SetValue(this, true);
+    }
+
+    Debug.Log("VRMapController reset.");
+}
+
+
+
     void FindVRComponents()
     {
         if (xrOrigin == null)

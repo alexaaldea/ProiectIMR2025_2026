@@ -51,6 +51,22 @@ public class SphereSpawner : MonoBehaviour
         nextSpawnTime = Time.time + spawnInterval;
     }
 
+    public void ResetSpawner()
+{
+    // Reset timer if it exists
+    if (this.GetType().GetField("timer") != null)
+    {
+        this.GetType().GetField("timer").SetValue(this, 0f);
+    }
+
+    // Re-enable the spawner
+    this.enabled = true;
+
+    Debug.Log("SphereSpawner reset.");
+}
+
+
+
     void Update()
     {
         if (Time.time >= nextSpawnTime && currentSphereCount < maxSpheres)
