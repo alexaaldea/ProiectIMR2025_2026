@@ -2,7 +2,6 @@ using UnityEngine;
 using TMPro;
 using UnityEngine.SceneManagement;
 
-
 public class GameManager : MonoBehaviour
 {
     public static GameManager Instance;
@@ -11,93 +10,119 @@ public class GameManager : MonoBehaviour
     public GameObject gameOverScreen;
     public TextMeshProUGUI coinsCollectedText;
 
-    [Header("High Scores UI")]
-    public TextMeshProUGUI best1Text;
-    public TextMeshProUGUI best2Text;
-    public TextMeshProUGUI best3Text;
+    [Header("High Score UI")]
+    public TextMeshProUGUI bestScoreText;
 
+    [Header("Distance UI")]
+    public TextMeshProUGUI distanceText;
+    public TextMeshProUGUI bestDistanceText;
 
     private bool isGameOver = false;
+    private VRMapController map;
+    private SphereSpawner spawner;
 
     private void Awake()
     {
-        if (Instance != null && Instance != this) { Destroy(gameObject); return; }
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
         Instance = this;
     }
 
+    private void Start()
+    {
+        // Cache references
+        map = FindObjectOfType<VRMapController>();
+        spawner = FindObjectOfType<SphereSpawner>();
+
+        // Load & show best distance
+        float bestDist = PlayerPrefs.GetFloat("BestDistance", 0f);
+        if (bestDistanceText != null)
+            bestDistanceText.text = "Record: " + bestDist.ToString("F1") + " m";
+
+        // Load best score
+        UpdateBestScoreUI();
+    }
+
+    private void Update()
+    {
+        if (!isGameOver && map != null && distanceText != null)
+        {
+            distanceText.text = "Distanță: " + map.distanceTraveled.ToString("F1") + " m";
+        }
+    }
+
     public void GameOver()
-{
-    if (isGameOver) return;
-    isGameOver = true;
-
-    int score = CoinGameManager.Instance.currentCoins;
-
-    // 1. Update the top 3 scores
-    UpdateBestScores(score);
-
-    // 2. Update UI
-    UpdateBestScoreUI();
-
-    // Already existing code
-    if (coinsCollectedText != null)
     {
-        coinsCollectedText.text = "Steluțe colectate: " + score;
+        if (isGameOver) return;
+        isGameOver = true;
+
+        int score = CoinGameManager.Instance.currentCoins;
+
+        // Stop movement & spawner
+        if (map != null) map.StopMovement();
+        if (spawner != null) spawner.enabled = false;
+
+        // Update best distance
+        if (map != null)
+            UpdateBestDistance(map.distanceTraveled);
+
+        // Show final distance
+        if (distanceText != null)
+            distanceText.text = "Distanță: " + map.distanceTraveled.ToString("F1") + " m";
+
+        // Update best score
+        UpdateBestScore(score);
+        UpdateBestScoreUI();
+
+        // Show coins collected
+        if (coinsCollectedText != null)
+            coinsCollectedText.text = "Steluțe colectate: " + score;
+
+        // Show Game Over screen
+        if (gameOverScreen != null)
+            gameOverScreen.SetActive(true);
     }
 
-    if (gameOverScreen != null) 
-        gameOverScreen.SetActive(true);
-}
-
-
-    private void UpdateBestScores(int newScore)
-{
-    int best1 = PlayerPrefs.GetInt("BestScore1", 0);
-    int best2 = PlayerPrefs.GetInt("BestScore2", 0);
-    int best3 = PlayerPrefs.GetInt("BestScore3", 0);
-
-    // If better than Best 1
-    if (newScore > best1)
+    private void UpdateBestDistance(float newDistance)
     {
-        best3 = best2;
-        best2 = best1;
-        best1 = newScore;
-    }
-    // If better than Best 2
-    else if (newScore > best2)
-    {
-        best3 = best2;
-        best2 = newScore;
-    }
-    // If better than Best 3
-    else if (newScore > best3)
-    {
-        best3 = newScore;
+        float best = PlayerPrefs.GetFloat("BestDistance", 0f);
+
+        if (newDistance > best)
+        {
+            best = newDistance;
+            PlayerPrefs.SetFloat("BestDistance", best);
+            PlayerPrefs.Save();
+        }
+
+        if (bestDistanceText != null)
+            bestDistanceText.text = "Record: " + best.ToString("F1") + " m";
     }
 
-    // Save back to PlayerPrefs
-    PlayerPrefs.SetInt("BestScore1", best1);
-    PlayerPrefs.SetInt("BestScore2", best2);
-    PlayerPrefs.SetInt("BestScore3", best3);
+    private void UpdateBestScore(int newScore)
+    {
+        int best = PlayerPrefs.GetInt("BestScore", 0);
 
-    PlayerPrefs.Save();
-}
+        if (newScore > best)
+        {
+            best = newScore;
+            PlayerPrefs.SetInt("BestScore", best);
+            PlayerPrefs.Save();
+        }
+    }
 
-private void UpdateBestScoreUI()
-{
-    int best1 = PlayerPrefs.GetInt("BestScore1", 0);
-    int best2 = PlayerPrefs.GetInt("BestScore2", 0);
-    int best3 = PlayerPrefs.GetInt("BestScore3", 0);
+    private void UpdateBestScoreUI()
+    {
+        int best = PlayerPrefs.GetInt("BestScore", 0);
+        if (bestScoreText != null)
+            bestScoreText.text = "Best: " + best;
+    }
 
-    if (best1Text != null) best1Text.text = "Best 1: " + best1;
-    if (best2Text != null) best2Text.text = "Best 2: " + best2;
-    if (best3Text != null) best3Text.text = "Best 3: " + best3;
-}
-public void PlayAgain()
-{
-    Scene scene = SceneManager.GetActiveScene();
-    SceneManager.LoadScene(scene.name);
-}
-
-
-
+    public void PlayAgain()
+    {
+        Scene scene = SceneManager.GetActiveScene();
+        SceneManager.LoadScene(scene.name);
+    }
 }
