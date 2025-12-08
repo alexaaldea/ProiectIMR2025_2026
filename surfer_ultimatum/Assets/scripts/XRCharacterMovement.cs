@@ -7,7 +7,7 @@ public class XRCharacterMovement : MonoBehaviour
     [SerializeField] private float moveSpeed = 3f;
     [SerializeField] private float gravity = -9.81f;
     [SerializeField] private float gravityMultiplier = 2f;
-    
+
     private CharacterController characterController;
     private Vector3 velocity;
     private Transform cameraTransform;
@@ -15,7 +15,7 @@ public class XRCharacterMovement : MonoBehaviour
     void Start()
     {
         characterController = GetComponent<CharacterController>();
-        
+
         if (Camera.main != null)
         {
             cameraTransform = Camera.main.transform;
@@ -35,7 +35,7 @@ public class XRCharacterMovement : MonoBehaviour
 
         Vector3 forward = cameraTransform.forward;
         Vector3 right = cameraTransform.right;
-        
+
         forward.y = 0;
         right.y = 0;
         forward.Normalize();
@@ -51,7 +51,7 @@ public class XRCharacterMovement : MonoBehaviour
         {
             velocity.y += gravity * gravityMultiplier * Time.deltaTime;
         }
-        
+
         moveDirection.y = velocity.y;
 
         characterController.Move(moveDirection * Time.deltaTime);

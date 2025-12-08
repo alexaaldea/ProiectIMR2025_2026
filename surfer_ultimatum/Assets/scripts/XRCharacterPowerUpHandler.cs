@@ -6,6 +6,9 @@ public class XRCharacterPowerUpHandler : MonoBehaviour
     private bool isShieldActive = false;
     private bool isSlowTimeActive = false;
 
+    [SerializeField] private GameObject shieldVisual;
+    [SerializeField] private float slowTimeScale = 0.5f;
+
     public void ActivatePowerUp(PowerUpType type, float duration)
     {
         switch (type)
@@ -25,29 +28,29 @@ public class XRCharacterPowerUpHandler : MonoBehaviour
     private IEnumerator ShieldCoroutine(float duration)
     {
         isShieldActive = true;
-        Debug.Log("Shield Activated!");
-        // TODO: Add shield visual here
+        if (shieldVisual != null) shieldVisual.SetActive(true);
 
         yield return new WaitForSeconds(duration);
 
+        if (shieldVisual != null) shieldVisual.SetActive(false);
         isShieldActive = false;
-        Debug.Log("Shield Ended!");
     }
 
     private IEnumerator SlowTimeCoroutine(float duration)
     {
         isSlowTimeActive = true;
-        Time.timeScale = 0.5f; // slow down the game
-        Time.fixedDeltaTime = 0.02f * Time.timeScale;
 
-        Debug.Log("Slow Time Activated!");
+        float originalTimeScale = Time.timeScale;
+        float originalFixedDeltaTime = Time.fixedDeltaTime;
 
-        yield return new WaitForSecondsRealtime(duration); // use real time because timeScale changed
+        Time.timeScale = slowTimeScale;
+        Time.fixedDeltaTime = originalFixedDeltaTime * Time.timeScale;
 
-        Time.timeScale = 1f;
-        Time.fixedDeltaTime = 0.02f;
+        yield return new WaitForSecondsRealtime(duration);
+
+        Time.timeScale = originalTimeScale;
+        Time.fixedDeltaTime = originalFixedDeltaTime;
         isSlowTimeActive = false;
-        Debug.Log("Slow Time Ended!");
     }
 
     public bool HasShield()

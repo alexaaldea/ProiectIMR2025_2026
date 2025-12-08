@@ -43,34 +43,39 @@ public class VRMapController : MonoBehaviour
     private float spawnTimer = 0f;
 
     void Start()
-{
-    Debug.Log("=== VRMapController Starting ===");
-    FindVRComponents();
-    InitializeChunkPools();
-
-    // Distance tracking setup
-    lastPosition = transform.position;
-    distanceTraveled = 0f;
-
-    // Set fixed player position
-    if (vrHead != null)
     {
-        fixedPlayerZ = vrHead.position.z;
-        Debug.Log($"Fixed player Z position: {fixedPlayerZ}");
-    }
+        Debug.Log("=== VRMapController Starting ===");
+        FindVRComponents();
+        InitializeChunkPools();
 
-    // Set initial spawn position
-    if (initialMapChunk != null)
-    {
-        activeChunks.Enqueue(initialMapChunk.gameObject);
-        Debug.Log($"Added initial chunk to active chunks: {initialMapChunk.name}");
+        // Distance tracking setup
+        lastPosition = transform.position;
+        distanceTraveled = 0f;
 
-        if (useEndPointAlignment)
+        // Set fixed player position
+        if (vrHead != null)
         {
-            MapChunkAlignment alignment = initialMapChunk.GetComponent<MapChunkAlignment>();
-            if (alignment != null)
+            fixedPlayerZ = vrHead.position.z;
+            Debug.Log($"Fixed player Z position: {fixedPlayerZ}");
+        }
+
+        // Set initial spawn position
+        if (initialMapChunk != null)
+        {
+            activeChunks.Enqueue(initialMapChunk.gameObject);
+            Debug.Log($"Added initial chunk to active chunks: {initialMapChunk.name}");
+
+            if (useEndPointAlignment)
             {
-                nextSpawnPosition = alignment.GetWorldEndPoint();
+                MapChunkAlignment alignment = initialMapChunk.GetComponent<MapChunkAlignment>();
+                if (alignment != null)
+                {
+                    nextSpawnPosition = alignment.GetWorldEndPoint();
+                }
+                else
+                {
+                    nextSpawnPosition = initialMapChunk.position + Vector3.forward * chunkLength;
+                }
             }
             else
             {
@@ -79,40 +84,35 @@ public class VRMapController : MonoBehaviour
         }
         else
         {
-            nextSpawnPosition = initialMapChunk.position + Vector3.forward * chunkLength;
+            nextSpawnPosition = Vector3.forward * 20f;
         }
+
+        Debug.Log($"Initial spawn position: {nextSpawnPosition}");
+
+        // Spawn initial chunks immediately
+        SpawnInitialChunks();
+        isInitialized = true;
+
+        Debug.Log($"Setup complete. Active chunks: {activeChunks.Count}, Next spawn at: {nextSpawnPosition.z}");
     }
-    else
-    {
-        nextSpawnPosition = Vector3.forward * 20f;
-    }
-
-    Debug.Log($"Initial spawn position: {nextSpawnPosition}");
-
-    // Spawn initial chunks immediately
-    SpawnInitialChunks();
-    isInitialized = true;
-
-    Debug.Log($"Setup complete. Active chunks: {activeChunks.Count}, Next spawn at: {nextSpawnPosition.z}");
-}
 
 
     public void ResetMovement()
-{
-    // If your script uses speed, reset it here safely
-    if (this.GetType().GetField("speed") != null)
     {
-        this.GetType().GetField("speed").SetValue(this, 2f); // default speed
-    }
+        // If your script uses speed, reset it here safely
+        if (this.GetType().GetField("speed") != null)
+        {
+            this.GetType().GetField("speed").SetValue(this, 2f); // default speed
+        }
 
-    // If your script has a bool that controls movement, reset it
-    if (this.GetType().GetField("isMoving") != null)
-    {
-        this.GetType().GetField("isMoving").SetValue(this, true);
-    }
+        // If your script has a bool that controls movement, reset it
+        if (this.GetType().GetField("isMoving") != null)
+        {
+            this.GetType().GetField("isMoving").SetValue(this, true);
+        }
 
-    Debug.Log("VRMapController reset.");
-}
+        Debug.Log("VRMapController reset.");
+    }
 
 
 
@@ -188,50 +188,50 @@ public class VRMapController : MonoBehaviour
     }
 
     void Update()
-{
-    if (!isInitialized) return;
-
-    // --- DISTANCE TRACKING ---
-    float delta = Vector3.Distance(transform.position, lastPosition);
-    distanceTraveled += delta;
-    lastPosition = transform.position;
-    // --------------------------
-
-    MoveChunks();
-    CheckTimerSpawning();
-    CheckDespawning();
-
-    // Debug controls
-    if (Input.GetKeyDown(KeyCode.Space))
     {
-        Debug.Log("Manual spawn triggered");
-        SpawnChunk();
-    }
+        if (!isInitialized) return;
 
-    if (Input.GetKeyDown(KeyCode.Equals))
-    {
-        movementSpeed += 2f;
-        Debug.Log($"Speed increased to: {movementSpeed}");
-    }
+        // --- DISTANCE TRACKING ---
+        float delta = Vector3.Distance(transform.position, lastPosition);
+        distanceTraveled += delta;
+        lastPosition = transform.position;
+        // --------------------------
 
-    if (Input.GetKeyDown(KeyCode.Minus))
-    {
-        movementSpeed = Mathf.Max(1f, movementSpeed - 2f);
-        Debug.Log($"Speed decreased to: {movementSpeed}");
-    }
+        MoveChunks();
+        CheckTimerSpawning();
+        CheckDespawning();
 
-    if (Input.GetKeyDown(KeyCode.T))
-    {
-        spawnInterval = Mathf.Max(0.1f, spawnInterval - 0.1f);
-        Debug.Log($"Spawn interval decreased to: {spawnInterval:F1}s");
-    }
+        // Debug controls
+        if (Input.GetKeyDown(KeyCode.Space))
+        {
+            Debug.Log("Manual spawn triggered");
+            SpawnChunk();
+        }
 
-    if (Input.GetKeyDown(KeyCode.Y))
-    {
-        spawnInterval += 0.1f;
-        Debug.Log($"Spawn interval increased to: {spawnInterval:F1}s");
+        if (Input.GetKeyDown(KeyCode.Equals))
+        {
+            movementSpeed += 2f;
+            Debug.Log($"Speed increased to: {movementSpeed}");
+        }
+
+        if (Input.GetKeyDown(KeyCode.Minus))
+        {
+            movementSpeed = Mathf.Max(1f, movementSpeed - 2f);
+            Debug.Log($"Speed decreased to: {movementSpeed}");
+        }
+
+        if (Input.GetKeyDown(KeyCode.T))
+        {
+            spawnInterval = Mathf.Max(0.1f, spawnInterval - 0.1f);
+            Debug.Log($"Spawn interval decreased to: {spawnInterval:F1}s");
+        }
+
+        if (Input.GetKeyDown(KeyCode.Y))
+        {
+            spawnInterval += 0.1f;
+            Debug.Log($"Spawn interval increased to: {spawnInterval:F1}s");
+        }
     }
-}
 
 
     void MoveChunks()
@@ -453,13 +453,13 @@ public class VRMapController : MonoBehaviour
 
 #if UNITY_EDITOR
         UnityEditor.Handles.Label(nextSpawnPosition + Vector3.up * 2f, $"Next Spawn\n{nextSpawnPosition.z:F1}");
-        
+
         Vector3 despawnLabelPos = new Vector3(0, 0, fixedPlayerZ - despawnDistance);
         UnityEditor.Handles.Label(despawnLabelPos + Vector3.up * 2f, $"Despawn\n{despawnLabelPos.z:F1}");
-        
+
         Vector3 playerLabelPos = new Vector3(0, 0, fixedPlayerZ);
         UnityEditor.Handles.Label(playerLabelPos + Vector3.up * 2f, $"Player\n{playerLabelPos.z:F1}");
-        
+
         // Show timer info
         UnityEditor.Handles.Label(playerLabelPos + Vector3.up * 4f, $"Timer: {spawnTimer:F1}/{spawnInterval:F1}s\nChunks: {activeChunks.Count}/{maxActiveChunks}");
 #endif

@@ -6,6 +6,7 @@ TagManager:
   tags:
   - Stairs
   - Star
+  - PowerUp
   layers:
   - Default
   - TransparentFX
