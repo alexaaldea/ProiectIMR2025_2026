@@ -7,7 +7,7 @@ public class XRCameraCollisionTracker : MonoBehaviour
     [SerializeField] private LayerMask collisionLayers = ~0;
 
     [Header("Sphere Detection")]
-    [SerializeField] private string redSphereTag = "RedSphere"; // Add this tag to your red spheres
+    [SerializeField] private string[] obstacleTags = { "RedSphere", "Obstacle" };
     [SerializeField] private bool detectSpheres = true;
 
     [Header("Tracking Settings")]
@@ -30,7 +30,6 @@ public class XRCameraCollisionTracker : MonoBehaviour
     public event TriggerEventHandler OnCameraTriggerStay;
     public event TriggerEventHandler OnCameraTriggerExit;
 
-    // New event for sphere hits
     public delegate void SphereHitEventHandler(GameObject sphere);
     public event SphereHitEventHandler OnRedSphereHit;
 
@@ -122,10 +121,17 @@ public class XRCameraCollisionTracker : MonoBehaviour
             Debug.LogWarning($"*** CAMERA HIT WALL *** {collision.gameObject.name}");
         }
 
-        // NEW: Check for red sphere
-        if (detectSpheres && collision.gameObject.CompareTag(redSphereTag))
+        // NEW: Check for obstacle tags
+        if (detectSpheres)
         {
-            HandleRedSphereHit(collision.gameObject);
+            foreach (string tag in obstacleTags)
+            {
+                if (collision.gameObject.CompareTag(tag))
+                {
+                    HandleRedSphereHit(collision.gameObject);
+                    break; // Exit loop once we find a match
+                }
+            }
         }
 
         OnCameraCollisionEnter?.Invoke(collision);
@@ -168,10 +174,17 @@ public class XRCameraCollisionTracker : MonoBehaviour
             Debug.Log($"Camera entered trigger: {other.gameObject.name}");
         }
 
-        // NEW: Check for red sphere (in case spheres use triggers instead of collisions)
-        if (detectSpheres && other.gameObject.CompareTag(redSphereTag))
+        // NEW: Check for obstacle tags
+        if (detectSpheres)
         {
-            HandleRedSphereHit(other.gameObject);
+            foreach (string tag in obstacleTags)
+            {
+                if (other.gameObject.CompareTag(tag))
+                {
+                    HandleRedSphereHit(other.gameObject);
+                    break; // Exit loop once we find a match
+                }
+            }
         }
 
         OnCameraTriggerEnter?.Invoke(other);
@@ -200,24 +213,31 @@ public class XRCameraCollisionTracker : MonoBehaviour
         OnCameraTriggerExit?.Invoke(other);
     }
 
-    // NEW: Method to handle red sphere hits
+    // NEW: Method to handle red sphere/obstacle hits
     private void HandleRedSphereHit(GameObject sphere)
     {
-        Debug.LogError($"!!! HIT BY RED SPHERE: {sphere.name} !!!");
+        Debug.LogError($"!!! HIT BY RED SPHERE OR OBSTACLE: {sphere.name} !!!");
 
         // Call the GameOver event
         OnRedSphereHit?.Invoke(sphere);
 
-        // Check for shield protection
-        XRCharacterPowerUpHandler powerUpHandler = GetComponent<XRCharacterPowerUpHandler>();
-        if (powerUpHandler != null && powerUpHandler.HasShield())
+        // Check for shield protection (only if it's a red sphere, not an obstacle)
+        if (sphere.CompareTag("RedSphere"))
         {
-            Debug.Log("Shield protected from sphere hit!");
-            return;
+            XRCharacterPowerUpHandler powerUpHandler = GetComponent<XRCharacterPowerUpHandler>();
+            if (powerUpHandler != null && powerUpHandler.HasShield())
+            {
+                Debug.Log("Shield protected from sphere hit!");
+                return; // Don't proceed to GameOver if shielded
+            }
         }
 
         // Game Over logic
-        ShowNotification("You were hit by a red sphere!");
+        string hitMessage = sphere.CompareTag("RedSphere") ?
+            "You were hit by a red sphere!" :
+            "You hit an obstacle!";
+
+        ShowNotification(hitMessage);
 
         // Call GameManager.Instance.GameOver()
         if (GameManager.Instance != null)
@@ -246,14 +266,28 @@ public class XRCameraCollisionTracker : MonoBehaviour
         return currentCollisionCount;
     }
 
-    // Optional: Public method to check if a collider is a red sphere
-    public bool IsRedSphere(Collider collider)
+    // Optional: Public method to check if a collider is in obstacle tags
+    public bool IsObstacle(Collider collider)
     {
-        return collider.CompareTag(redSphereTag);
+        foreach (string tag in obstacleTags)
+        {
+            if (collider.CompareTag(tag))
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
-    public bool IsRedSphere(GameObject obj)
+    public bool IsObstacle(GameObject obj)
     {
-        return obj.CompareTag(redSphereTag);
+        foreach (string tag in obstacleTags)
+        {
+            if (obj.CompareTag(tag))
+            {
+                return true;
+            }
+        }
+        return false;
     }
 }
