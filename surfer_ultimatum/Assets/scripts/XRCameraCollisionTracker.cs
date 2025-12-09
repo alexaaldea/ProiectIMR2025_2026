@@ -6,6 +6,10 @@ public class XRCameraCollisionTracker : MonoBehaviour
     [SerializeField] private bool logCollisions = true;
     [SerializeField] private LayerMask collisionLayers = ~0;
 
+    [Header("Sphere Detection")]
+    [SerializeField] private string redSphereTag = "RedSphere"; // Add this tag to your red spheres
+    [SerializeField] private bool detectSpheres = true;
+
     [Header("Tracking Settings")]
     [SerializeField] private bool trackPosition = false;
     [SerializeField] private bool trackRotation = false;
@@ -25,6 +29,10 @@ public class XRCameraCollisionTracker : MonoBehaviour
     public event TriggerEventHandler OnCameraTriggerEnter;
     public event TriggerEventHandler OnCameraTriggerStay;
     public event TriggerEventHandler OnCameraTriggerExit;
+
+    // New event for sphere hits
+    public delegate void SphereHitEventHandler(GameObject sphere);
+    public event SphereHitEventHandler OnRedSphereHit;
 
     private void Start()
     {
@@ -112,9 +120,13 @@ public class XRCameraCollisionTracker : MonoBehaviour
         if (logCollisions)
         {
             Debug.LogWarning($"*** CAMERA HIT WALL *** {collision.gameObject.name}");
-
         }
 
+        // NEW: Check for red sphere
+        if (detectSpheres && collision.gameObject.CompareTag(redSphereTag))
+        {
+            HandleRedSphereHit(collision.gameObject);
+        }
 
         OnCameraCollisionEnter?.Invoke(collision);
     }
@@ -156,6 +168,12 @@ public class XRCameraCollisionTracker : MonoBehaviour
             Debug.Log($"Camera entered trigger: {other.gameObject.name}");
         }
 
+        // NEW: Check for red sphere (in case spheres use triggers instead of collisions)
+        if (detectSpheres && other.gameObject.CompareTag(redSphereTag))
+        {
+            HandleRedSphereHit(other.gameObject);
+        }
+
         OnCameraTriggerEnter?.Invoke(other);
     }
 
@@ -182,6 +200,42 @@ public class XRCameraCollisionTracker : MonoBehaviour
         OnCameraTriggerExit?.Invoke(other);
     }
 
+    // NEW: Method to handle red sphere hits
+    private void HandleRedSphereHit(GameObject sphere)
+    {
+        Debug.LogError($"!!! HIT BY RED SPHERE: {sphere.name} !!!");
+
+        // Call the GameOver event
+        OnRedSphereHit?.Invoke(sphere);
+
+        // Check for shield protection
+        XRCharacterPowerUpHandler powerUpHandler = GetComponent<XRCharacterPowerUpHandler>();
+        if (powerUpHandler != null && powerUpHandler.HasShield())
+        {
+            Debug.Log("Shield protected from sphere hit!");
+            return;
+        }
+
+        // Game Over logic
+        ShowNotification("You were hit by a red sphere!");
+
+        // Call GameManager.Instance.GameOver()
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.GameOver();
+        }
+        else
+        {
+            Debug.LogError("GameManager.Instance is null!");
+        }
+    }
+
+    private void ShowNotification(string message)
+    {
+        Debug.LogWarning("*** " + message + " ***");
+        // You could also implement a UI notification system here
+    }
+
     private bool IsInLayerMask(GameObject obj, LayerMask layerMask)
     {
         return ((1 << obj.layer) & layerMask) != 0;
@@ -190,5 +244,16 @@ public class XRCameraCollisionTracker : MonoBehaviour
     public int GetCurrentCollisionCount()
     {
         return currentCollisionCount;
+    }
+
+    // Optional: Public method to check if a collider is a red sphere
+    public bool IsRedSphere(Collider collider)
+    {
+        return collider.CompareTag(redSphereTag);
+    }
+
+    public bool IsRedSphere(GameObject obj)
+    {
+        return obj.CompareTag(redSphereTag);
     }
 }

@@ -13,6 +13,13 @@ public class MovingSphere : MonoBehaviour
     void Start()
     {
         spawnTime = Time.time;
+
+        // Make sure your red spheres have the correct tag
+        if (gameObject.CompareTag("RedSphere"))
+        {
+            Debug.Log("Red sphere spawned");
+        }
+
         Rigidbody rb = GetComponent<Rigidbody>();
         if (rb == null)
         {
@@ -26,7 +33,7 @@ public class MovingSphere : MonoBehaviour
         {
             collider = gameObject.AddComponent<SphereCollider>();
         }
-        collider.isTrigger = true;
+        collider.isTrigger = true; // Or false if you want collision instead of trigger
     }
 
     void Update()
@@ -52,13 +59,12 @@ public class MovingSphere : MonoBehaviour
             return;
         }
 
-        // Check for XR Camera collision tracker
+        // Let the XRCameraCollisionTracker handle the collision logic
+        // It will check if this is a red sphere and call GameOver if needed
         XRCameraCollisionTracker cameraTracker = other.GetComponent<XRCameraCollisionTracker>();
         if (cameraTracker != null)
         {
             hasCollided = true;
-            ShowNotification("You were hit by a sphere!");
-            GameManager.Instance.GameOver();
             DestroySphere();
             return;
         }
@@ -67,15 +73,8 @@ public class MovingSphere : MonoBehaviour
         if (other.GetComponent<CharacterController>() != null)
         {
             hasCollided = true;
-            ShowNotification("You were hit by a sphere!");
-            GameManager.Instance.GameOver();
             DestroySphere();
         }
-    }
-
-    private void ShowNotification(string message)
-    {
-        Debug.LogWarning("*** " + message + " ***");
     }
 
     private void DestroySphere()
