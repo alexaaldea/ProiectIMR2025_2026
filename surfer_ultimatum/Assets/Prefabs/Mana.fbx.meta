@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 566840ec38c00344ba4e48b01ad84fe1
+guid: 5659b0da6c6c34348890b1623fdebe8c
 ModelImporter:
   serializedVersion: 22200
   internalIDToNameTable: []
@@ -8,12 +8,12 @@ ModelImporter:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
       name: Skin
-    second: {fileID: 2100000, guid: 5f2a9c4c2b859fd4b98ed51557e6f6e0, type: 2}
+    second: {fileID: 2100000, guid: c2deeef7d63a43543887d0e4e23da03e, type: 2}
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
       name: Sleeve
-    second: {fileID: 2100000, guid: e9158f4ff8cd8a44091ef9ef07be703b, type: 2}
+    second: {fileID: 2100000, guid: 0bff59d92ef9290478aff71e35d34cad, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0
