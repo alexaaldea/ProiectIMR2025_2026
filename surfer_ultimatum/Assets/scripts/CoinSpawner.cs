@@ -1,124 +1,137 @@
-using UnityEngine;
+﻿using UnityEngine;
 using System.Collections.Generic;
 
 public class CoinSpawner : MonoBehaviour
 {
-    [Header("Spawn Area")]
-    public Transform startPoint;
-    public Transform endPoint;
-    public int coinsPerLine = 10;
-    public float verticalOffset = 0.5f;
+    [Header("Start / End (direcția pistei)")]
+    public Transform startPoint;          // CoinStart
+    public Transform endPoint;            // CoinEnd
 
-    [Header("Random")]
-    public bool randomize = false;
-    public float laneWidth = 2f;
-    public int lanes = 3;
-    public float minSpacing = 1f;
+    [Header("Player")]
+    public Transform player;              // XR Origin / Camera / Player
 
-    [Header("Avoid Overlap")]
+    [Header("Lane Settings")]
+    [Tooltip("Distanța laterală între pista din mijloc și cele laterale")]
+    public float laneOffset = 0.3f;       // EX: 0.3 => stânga = x-0.3, dreapta = x+0.3
+
+    [Header("Spawn Settings")]
+    public bool autoSpawnByTime = true;
+    public float spawnInterval = 1.0f;    // secunde între spawn-uri
+    public float spawnDistanceAhead = 15f;// cât de departe în fața player-ului
+    public float randomZOffset = 2f;      // mică variație pe Z
+
+    [Header("Mișcare pe Z spre player")]
+    public float coinSpeed = 5f;          // unități / secundă
+
+    [Header("Overlap check (opțional)")]
     public float checkRadius = 0.3f;
     public LayerMask obstacleMask;
 
-    public enum Pattern { LineCenter, MultiLaneSpread, ZigZag, RandomScatter }
-    public Pattern pattern = Pattern.LineCenter;
-
     private List<StarCollectible> _spawned = new List<StarCollectible>();
+    private float _nextSpawnTime;
 
+    // ==== metoda folosită și de MapChunkExampleHook ====
     public void Spawn()
     {
-        ClearPrevious();
-        if (startPoint == null || endPoint == null) return;
-
-        Vector3 a = startPoint.position;
-        Vector3 b = endPoint.position;
-        Vector3 dir = (b - a).normalized;
-        float totalDist = Vector3.Distance(a, b);
-
-        switch (pattern)
+        if (player == null)
         {
-            case Pattern.LineCenter: SpawnLine(a, dir, totalDist); break;
-            case Pattern.MultiLaneSpread: SpawnMultiLane(a, dir, totalDist); break;
-            case Pattern.ZigZag: SpawnZigZag(a, dir, totalDist); break;
-            case Pattern.RandomScatter: SpawnRandom(a, dir, totalDist); break;
-        }
-    }
-
-    private void SpawnLine(Vector3 start, Vector3 dir, float dist)
-    {
-        for (int i = 0; i < coinsPerLine; i++)
-        {
-            float t = (float)i / (coinsPerLine - 1);
-            Vector3 pos = start + dir * dist * t;
-            pos.y += verticalOffset;
-            TrySpawnAt(pos);
-        }
-    }
-
-    private void SpawnMultiLane(Vector3 start, Vector3 dir, float dist)
-    {
-        for (int lane = 0; lane < lanes; lane++)
-        {
-            float laneOffset = Mathf.Lerp(-laneWidth, laneWidth, lane / (float)(lanes - 1));
-            for (int i = 0; i < coinsPerLine; i++)
-            {
-                float t = (float)i / (coinsPerLine - 1);
-                Vector3 pos = start + dir * dist * t + Vector3.right * laneOffset;
-                pos.y += verticalOffset;
-                TrySpawnAt(pos);
-            }
-        }
-    }
-
-    private void SpawnZigZag(Vector3 start, Vector3 dir, float dist)
-    {
-        for (int i = 0; i < coinsPerLine; i++)
-        {
-            float t = (float)i / (coinsPerLine - 1);
-            float zig = Mathf.Sin(t * Mathf.PI * 2f) * laneWidth;
-            Vector3 pos = start + dir * dist * t + Vector3.right * zig;
-            pos.y += verticalOffset;
-            TrySpawnAt(pos);
-        }
-    }
-
-    private void SpawnRandom(Vector3 start, Vector3 dir, float dist)
-    {
-        float step = dist / coinsPerLine;
-        float current = 0f;
-        while (current < dist)
-        {
-            Vector3 pos = start + dir * current;
-            float randomLane = Random.Range(-laneWidth, laneWidth);
-            pos += Vector3.right * randomLane;
-            pos.y += verticalOffset;
-            TrySpawnAt(pos);
-            current += Random.Range(minSpacing, step + minSpacing);
-        }
-    }
-
-    private void TrySpawnAt(Vector3 pos)
-    {
-        if (Physics.CheckSphere(pos, checkRadius, obstacleMask))
+            Debug.LogWarning("CoinSpawner: Player nu este setat.");
             return;
+        }
+
+        if (startPoint == null || endPoint == null)
+        {
+            Debug.LogWarning("CoinSpawner: startPoint sau endPoint lipsesc.");
+            return;
+        }
 
         if (CoinPool.Instance == null)
         {
-            Debug.LogWarning("CoinSpawner: CoinPool.Instance este null. Am�n spawn-ul.");
+            Debug.LogWarning("CoinSpawner: CoinPool.Instance este null.");
             return;
         }
 
-        var star = CoinPool.Instance.GetStar(pos, Quaternion.identity);
-        if (star != null)
-            _spawned.Add(star);
+        // direcția drumului
+        Vector3 dir = (endPoint.position - startPoint.position).normalized;
+
+        // Z în fața playerului
+        Vector3 forwardPos = player.position + dir * (spawnDistanceAhead + Random.Range(0f, randomZOffset));
+
+        // 3 piste pe X
+        float baseX = startPoint.position.x;
+
+        int laneIndex = Random.Range(0, 3); // 0, 1, 2
+        float laneX;
+
+        switch (laneIndex)
+        {
+            case 0: // stânga
+                laneX = baseX - laneOffset;
+                break;
+            case 1: // mijloc
+                laneX = baseX;
+                break;
+            default: // 2, dreapta
+                laneX = baseX + laneOffset;
+                break;
+        }
+
+        // pentru debug: vezi în consolă pe ce pistă spawnează
+        Debug.Log($"CoinSpawner: spawn laneIndex={laneIndex}, laneX={laneX}");
+
+        // Y = solul (Y-ul lui startPoint)
+        float y = startPoint.position.y;
+
+        Vector3 spawnPos = new Vector3(laneX, y, forwardPos.z);
+
+        if (Physics.CheckSphere(spawnPos, checkRadius, obstacleMask))
+            return;
+
+        StarCollectible star = CoinPool.Instance.GetStar(spawnPos, Quaternion.identity);
+        if (star == null) return;
+
+        _spawned.Add(star);
+
+        // mișcare DOAR pe Z (nu urmărește playerul pe X/Y)
+        CoinMoverZ mover = star.gameObject.GetComponent<CoinMoverZ>();
+        if (mover == null) mover = star.gameObject.AddComponent<CoinMoverZ>();
+
+        mover.speed = coinSpeed;
+    }
+    // ====================================================
+
+    private void Update()
+    {
+        if (!autoSpawnByTime) return;
+        if (player == null) return;
+
+        if (Time.time >= _nextSpawnTime)
+        {
+            Spawn();
+            _nextSpawnTime = Time.time + spawnInterval;
+        }
     }
 
     public void ClearPrevious()
     {
+        if (CoinPool.Instance == null) return;
+
         foreach (var star in _spawned)
         {
             if (star != null && star.gameObject.activeSelf)
                 CoinPool.Instance.ReturnToPool(star);
         }
         _spawned.Clear();
+    }
+
+    // ===== component intern: mișcare strict pe axa Z =====
+    private class CoinMoverZ : MonoBehaviour
+    {
+        public float speed = 5f;
+
+        void Update()
+        {
+            transform.position += Vector3.back * speed * Time.deltaTime;
+        }
     }
 }
