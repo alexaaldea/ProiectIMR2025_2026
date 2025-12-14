@@ -17,6 +17,9 @@ public class GameManager : MonoBehaviour
     public TextMeshProUGUI distanceText;
     public TextMeshProUGUI bestDistanceText;
 
+    [Header("Total Stars UI")]
+    public TextMeshProUGUI totalStarsText;  // New UI text for cumulative stars
+
     private bool isGameOver = false;
     private VRMapController map;
     private SphereSpawner spawner;
@@ -44,6 +47,11 @@ public class GameManager : MonoBehaviour
 
         // Load best score
         UpdateBestScoreUI();
+
+        // Load total stars collected so far
+        int totalStars = PlayerPrefs.GetInt("TotalStars", 0);
+        if (totalStarsText != null)
+            totalStarsText.text = "Total steluțe: " + totalStars;
     }
 
     private void Update()
@@ -77,9 +85,17 @@ public class GameManager : MonoBehaviour
         UpdateBestScore(score);
         UpdateBestScoreUI();
 
+        // Add collected stars to total stars and save
+       int totalStars = CoinGameManager.Instance.totalCoinsLifetime;
+
+
         // Show coins collected
         if (coinsCollectedText != null)
             coinsCollectedText.text = "Steluțe colectate: " + score;
+
+        // Show total stars collected
+        if (totalStarsText != null)
+            totalStarsText.text = "Total steluțe: " + totalStars;
 
         // Show Game Over screen
         if (gameOverScreen != null)

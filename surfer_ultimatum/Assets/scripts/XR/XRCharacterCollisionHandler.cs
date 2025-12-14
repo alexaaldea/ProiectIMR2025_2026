@@ -4,65 +4,48 @@
 [RequireComponent(typeof(Rigidbody))]
 public class XRCharacterCollisionHandler : MonoBehaviour
 {
-    [Header("Optional (doar dacă ai shield)")]
-    [SerializeField] private XRCharacterPowerUpHandler powerUpHandler;
-
+    private XRCharacterPowerUpHandler powerUpHandler;
     private bool isDead = false;
-
-    private void Reset()
-    {
-        // Se cheamă când atașezi scriptul prima dată
-        Collider col = GetComponent<Collider>();
-        col.isTrigger = false;      // vrem coliziune fizică
-
-        Rigidbody rb = GetComponent<Rigidbody>();
-        rb.isKinematic = false;    // obligatoriu pentru OnCollisionEnter
-        rb.useGravity = false;     // pentru VR, să nu cadă camera
-    }
 
     private void Awake()
     {
-        // Dacă nu e setat din Inspector, încercăm să-l căutăm pe același obiect
+        powerUpHandler = GetComponent<XRCharacterPowerUpHandler>();
         if (powerUpHandler == null)
-            powerUpHandler = GetComponent<XRCharacterPowerUpHandler>();
+            powerUpHandler = GetComponentInParent<XRCharacterPowerUpHandler>();
     }
 
-    // SE APELEAZĂ DOAR LA COLIZIUNI FIZICE (NU TRIGGER)
+    private void Reset()
+    {
+        Collider col = GetComponent<Collider>();
+        col.isTrigger = false;
+
+        Rigidbody rb = GetComponent<Rigidbody>();
+        rb.isKinematic = false;
+        rb.useGravity = false;
+    }
+
     private void OnCollisionEnter(Collision collision)
     {
         if (isDead) return;
 
         GameObject hit = collision.gameObject;
-        Debug.Log("Am lovit: " + hit.name + " (tag: " + hit.tag + ")");
 
-        // Mori DOAR dacă obiectul are tag "Obstacle"
-        if (hit.CompareTag("Obstacle"))
+        // Check if obstacle
+        if (hit.CompareTag("Obstacle") || hit.CompareTag("RedSphere"))
         {
-            TryKillPlayer("Lovit de obstacle: " + hit.name);
-        }
-    }
+            // Shield protects only against RedSphere
+            if (hit.CompareTag("RedSphere") && powerUpHandler != null && powerUpHandler.HasShield())
+            {
+                Debug.Log("Shield protected from sphere hit!");
+                return;
+            }
 
-    private void TryKillPlayer(string reason)
-    {
-        // Dacă ai shield activ, nu mori
-        if (powerUpHandler != null && powerUpHandler.HasShield())
-        {
-            Debug.Log("Protejat de shield, NU mori. Motiv: " + reason);
-            return;
-        }
+            // Player dies
+            isDead = true;
+            Debug.LogWarning("PLAYER HIT! " + hit.name);
 
-        if (isDead) return;
-        isDead = true;
-
-        Debug.LogWarning("PLAYER KILLED! Motiv: " + reason);
-
-        if (GameManager.Instance != null)
-        {
-            GameManager.Instance.GameOver();
-        }
-        else
-        {
-            Debug.LogError("GameManager.Instance este null. Pune un GameManager în scenă și asigură-te că nu este dezactivat.");
+            if (GameManager.Instance != null)
+                GameManager.Instance.GameOver();
         }
     }
 }

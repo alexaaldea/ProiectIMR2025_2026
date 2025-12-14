@@ -15,8 +15,7 @@ public class PowerUp : MonoBehaviour
     private void Reset()
     {
         Collider col = GetComponent<Collider>();
-        col.isTrigger = true;
-
+        col.isTrigger = true; // Trigger for pickup
         if (CompareTag("Untagged"))
             gameObject.tag = "PowerUp";
     }

@@ -1,11 +1,13 @@
 using UnityEngine;
 using System.Collections;
 
+[RequireComponent(typeof(Collider))]
 public class XRCharacterPowerUpHandler : MonoBehaviour
 {
     private bool isShieldActive = false;
     private bool isSlowTimeActive = false;
 
+    [Header("Optional Visuals")]
     [SerializeField] private GameObject shieldVisual;
     [SerializeField] private float slowTimeScale = 0.5f;
 
@@ -30,7 +32,7 @@ public class XRCharacterPowerUpHandler : MonoBehaviour
         isShieldActive = true;
         if (shieldVisual != null) shieldVisual.SetActive(true);
 
-        yield return new WaitForSeconds(duration);
+        yield return new WaitForSecondsRealtime(duration); // Real time, not affected by time scale
 
         if (shieldVisual != null) shieldVisual.SetActive(false);
         isShieldActive = false;
@@ -46,7 +48,7 @@ public class XRCharacterPowerUpHandler : MonoBehaviour
         Time.timeScale = slowTimeScale;
         Time.fixedDeltaTime = originalFixedDeltaTime * Time.timeScale;
 
-        yield return new WaitForSecondsRealtime(duration);
+        yield return new WaitForSecondsRealtime(duration); // Use real time for consistency
 
         Time.timeScale = originalTimeScale;
         Time.fixedDeltaTime = originalFixedDeltaTime;
