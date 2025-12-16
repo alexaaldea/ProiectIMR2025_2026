@@ -20,7 +20,7 @@ Tema 6: https://docs.google.com/document/d/1lutTVPuOu9pwWkMPUFcfoAswonROggAUiwoY
 - Am refactorizat puțin codul pentru a fi mai ușor de înțeles
 - am randomizat mai mult pozitia steluțelor pentru a fi colectate
 
-***progresul este un folderul Lab11***
+***progresul este in folderul Lab11***
 
 ### Ce ne propunem:
 - sa lucram puțin la design Ul jocului, sa fie mai interactiv
