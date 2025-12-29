@@ -1,4 +1,6 @@
 using UnityEngine;
+using System.Threading;
+
 
 public class SphereSpawner : MonoBehaviour
 {
@@ -6,6 +8,7 @@ public class SphereSpawner : MonoBehaviour
     [SerializeField] private GameObject[] prefabs;
     [SerializeField] private float spawnInterval = 2f;
     [SerializeField] private int maxSpheres = 10;
+    [SerializeField] private float startDelay = 0f;
 
     [Header("Spawn Area")]
     [SerializeField] private Vector3 spawnAreaSize = new Vector3(10f, 2f, 10f);
@@ -48,7 +51,7 @@ public class SphereSpawner : MonoBehaviour
             Debug.LogError("Could not find XR Origin! Make sure it's named 'XR Origin (XR Rig)'");
         }
 
-        nextSpawnTime = Time.time + spawnInterval;
+        nextSpawnTime = Time.time + spawnInterval + startDelay;
     }
 
     public void ResetSpawner()
@@ -87,9 +90,20 @@ public class SphereSpawner : MonoBehaviour
         Vector3 spawnPosition = transform.position + randomOffset;
 
         GameObject sphere;
-        if (prefabs != null && prefabs.Length > 0) // Fixed: added null check
+        if (prefabs != null && prefabs.Length > 0) 
         {
-            int rand = Random.Range(0, prefabs.Length); // Fixed: was prefabs.Length-1, should be prefabs.Length
+            int prob = Random.Range(0, 10);
+            int rand = prefabs.Length;
+            if (prob <= 2)
+            {
+                rand = 0;
+            } else if (prob <= 6)
+            {
+                rand = 1;
+            } else
+            {
+                rand = 2;
+            }
             sphere = Instantiate(prefabs[rand], spawnPosition, Quaternion.identity);
         }
         else
@@ -112,7 +126,6 @@ public class SphereSpawner : MonoBehaviour
         movingSphere.lifetime = sphereLifetime;
         movingSphere.spawner = this;
 
-        // Modified: Prioritize moving towards XR camera if available, otherwise XR Origin
         if (moveTowardsPlayer)
         {
             Transform targetTransform = xrCamera != null ? xrCamera.transform : playerTransform;
