@@ -22,6 +22,16 @@ Tema 6: https://docs.google.com/document/d/1lutTVPuOu9pwWkMPUFcfoAswonROggAUiwoY
 
 ***progresul este in folderul Sapt11***
 
+### Pentru laboratorul 13:
+- Am lucrat la design-ul jocului : 
+1.jumatate de mapa este urbana , cu grafitti 
+2.cealalta jumatate este neon (din viitor) . Jucatorul va experimenta trecerea dintr-o lume in alta
+- Nu se mai despawneze jucatorul de pe harta
+- Se spawneze mai rar sfere rosii, powerup si shield ( experienta de joc mai placuta)
+- Powerup-ul de slow este reprezentat de un tufis acum , care te incetineste
+- Design-ul este facut in blender si exportat in unity
+***progresul este in folderul Sapt13***
+
 ### Ce ne propunem:
-- sa lucram puțin la design Ul jocului, sa fie mai interactiv
-- Sa lucram la partea de shop, pentru a face caracterul custom
+- Sa lucram la partea de shop, pentru a face caracterul custom (ne mai gandim aici)
+- Implementarea shield-ului (sa ofere o viata in plus)
