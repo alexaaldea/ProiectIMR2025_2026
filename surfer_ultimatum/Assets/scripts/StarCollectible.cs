@@ -11,6 +11,10 @@ public class StarCollectible : MonoBehaviour
     public AudioClip pickupClip;
     public ParticleSystem pickupParticles;
 
+    [Header("Audio Settings")]
+    [Tooltip("Use AudioManager for sound (recommended) or local AudioSource")]
+    public bool useAudioManager = true;
+
     [Header("Intern")]
     public bool isActive = true;
 
@@ -22,6 +26,15 @@ public class StarCollectible : MonoBehaviour
     private void Awake()
     {
         _audioSource = GetComponent<AudioSource>();
+
+        // If no AudioSource and not using AudioManager, add one
+        if (!useAudioManager && _audioSource == null)
+        {
+            _audioSource = gameObject.AddComponent<AudioSource>();
+            _audioSource.playOnAwake = false;
+            _audioSource.spatialBlend = 1f; // 3D sound
+        }
+
         _initialScale = transform.localScale;
     }
 
@@ -76,8 +89,11 @@ public class StarCollectible : MonoBehaviour
         if (!isActive) return;
 
         isActive = false;
+
+        // Add coin to score
         CoinGameManager.Instance.AddCoin(1);
 
+        // Spawn particle effects
         if (pickupParticles != null)
         {
             var p = Instantiate(pickupParticles, transform.position, Quaternion.identity);
@@ -85,10 +101,47 @@ public class StarCollectible : MonoBehaviour
             Destroy(p.gameObject, 2f);
         }
 
-        if (pickupClip != null && _audioSource != null)
-            _audioSource.PlayOneShot(pickupClip);
+        // Play sound effect
+        PlayCollectionSound();
 
+        // Start collection animation
         _isCollecting = true;
         _collectAnimTime = 0f;
+    }
+
+    private void PlayCollectionSound()
+    {
+        if (pickupClip == null)
+        {
+            Debug.LogWarning("Pickup clip is not assigned on " + gameObject.name);
+            return;
+        }
+
+        if (useAudioManager)
+        {
+            // Use centralized AudioManager (recommended for consistent volume)
+            if (AudioManager.Instance != null)
+            {
+                AudioManager.Instance.PlayCoinSound();
+            }
+            else
+            {
+                Debug.LogWarning("AudioManager not found! Falling back to local AudioSource");
+                PlayLocalSound();
+            }
+        }
+        else
+        {
+            // Use local AudioSource (for 3D positional audio)
+            PlayLocalSound();
+        }
+    }
+
+    private void PlayLocalSound()
+    {
+        if (_audioSource != null && pickupClip != null)
+        {
+            _audioSource.PlayOneShot(pickupClip);
+        }
     }
 }

@@ -16,7 +16,6 @@ public class PowerUp : MonoBehaviour
     {
         Collider col = GetComponent<Collider>();
         col.isTrigger = true;
-
         if (CompareTag("Untagged"))
             gameObject.tag = "PowerUp";
     }
@@ -29,7 +28,20 @@ public class PowerUp : MonoBehaviour
 
         if (handler != null)
         {
+            // Play powerup sound
+            if (AudioManager.Instance != null)
+            {
+                AudioManager.Instance.PlayPowerupSound();
+            }
+            else
+            {
+                Debug.LogWarning("AudioManager.Instance not found!");
+            }
+
+            // Activate the powerup
             handler.ActivatePowerUp(powerUpType, duration);
+
+            // Destroy the powerup object
             Destroy(gameObject);
         }
     }

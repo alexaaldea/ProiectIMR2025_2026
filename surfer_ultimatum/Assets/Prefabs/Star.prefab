@@ -145,7 +145,7 @@ MonoBehaviour:
     m_PostInfinity: 2
     m_RotationOrder: 4
   collectAnimDuration: 0.2
-  pickupClip: {fileID: 0}
+  pickupClip: {fileID: 8300000, guid: 2f88eddbd7c3a234ab566d1caca499ad, type: 3}
   pickupParticles: {fileID: 0}
   isActive: 1
 --- !u!1001 &3801528205099744258

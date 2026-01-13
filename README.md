@@ -32,6 +32,11 @@ Tema 6: https://docs.google.com/document/d/1lutTVPuOu9pwWkMPUFcfoAswonROggAUiwoY
 - Design-ul este facut in blender si exportat in unity
 ***progresul este in folderul Sapt13***
 
+### Pentru laboratorul 14: ( )
+- Am lucrat la design-ul jocului 
+- Sunete cand iei o stea , un powerup sau cand mori
+-Proiectul este intr-o faza finala , iar dupa examne ne propunem sa facem ultimele modificari pentru a fi complet .
+***progresul este in folderul Sapt14***
+
 ### Ce ne propunem:
-- Sa lucram la partea de shop, pentru a face caracterul custom (ne mai gandim aici)
-- Implementarea shield-ului (sa ofere o viata in plus)
+- Sa lucram la partea de shop, pentru a face caracterul custom (ne mai gandim aici) - dupa perioada de examene

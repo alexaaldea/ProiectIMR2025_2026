@@ -232,6 +232,12 @@ public class XRCameraCollisionTracker : MonoBehaviour
             }
         }
 
+        // Play death sound
+        if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.PlayDeathSound();
+        }
+
         // Game Over logic
         string hitMessage = sphere.CompareTag("RedSphere") ?
             "You were hit by a red sphere!" :
