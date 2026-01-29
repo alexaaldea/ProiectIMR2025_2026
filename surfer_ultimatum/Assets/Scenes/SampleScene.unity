@@ -5483,6 +5483,58 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2066127463}
   m_CullTransparentMesh: 1
+--- !u!1 &2097149827
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2097149829}
+  - component: {fileID: 2097149828}
+  m_Layer: 0
+  m_Name: AudioManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &2097149828
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2097149827}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5662f76f5cf641b42a089a85ce88f390, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  sfxSource: {fileID: 0}
+  coinCollectSound: {fileID: 8300000, guid: 2f88eddbd7c3a234ab566d1caca499ad, type: 3}
+  deathSound: {fileID: 8300000, guid: 6eed41e31e0f3184eb65e55fcb93ceea, type: 3}
+  powerupSound: {fileID: 8300000, guid: 7079958a32c8119408f9eca9f6022ab9, type: 3}
+  masterSfxVolume: 1
+  coinSoundVolume: 0.286
+  deathSoundVolume: 0.855
+  powerupSoundVolume: 0.7
+--- !u!4 &2097149829
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2097149827}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 6.7, y: -5.63, z: 31.7}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &2098213763
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -7817,3 +7869,4 @@ SceneRoots:
   - {fileID: 1467479279}
   - {fileID: 530683413}
   - {fileID: 1795129456}
+  - {fileID: 2097149829}
