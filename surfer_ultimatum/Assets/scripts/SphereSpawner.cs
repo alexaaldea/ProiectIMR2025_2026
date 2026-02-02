@@ -1,7 +1,6 @@
 using UnityEngine;
 using System.Threading;
 
-
 public class SphereSpawner : MonoBehaviour
 {
     [Header("Spawn Settings")]
@@ -9,6 +8,17 @@ public class SphereSpawner : MonoBehaviour
     [SerializeField] private float spawnInterval = 2f;
     [SerializeField] private int maxSpheres = 10;
     [SerializeField] private float startDelay = 0f;
+
+    [Header("Initial probabilistic distribution")]
+    [SerializeField] private int obstacle = 2;
+    [SerializeField] private int first_powerup = 4;
+    [SerializeField] private int second_powerup = 4;
+
+    [Header("Distance scaling")]
+    [SerializeField] private float metersStep = 100f;
+    [SerializeField] private float distanceForObstacle4 = 550f;
+    [SerializeField] private float distanceForObstacle6 = 1000f;
+    [SerializeField] private VRMapController mapController;
 
     [Header("Spawn Area")]
     [SerializeField] private Vector3 spawnAreaSize = new Vector3(10f, 2f, 10f);
@@ -29,8 +39,15 @@ public class SphereSpawner : MonoBehaviour
     private float nextSpawnTime;
     private int currentSphereCount = 0;
 
+    private int lastStepIndex = 0;
+
     void Start()
     {
+        if (obstacle + first_powerup + second_powerup != 10)
+        {
+            Debug.LogError("Inserted probabilities don t add up to 100 ! (ex: 1,6,3)");
+        }
+
         GameObject xrOrigin = GameObject.Find("XR Origin (XR Rig)");
         if (xrOrigin != null)
         {
@@ -51,31 +68,78 @@ public class SphereSpawner : MonoBehaviour
             Debug.LogError("Could not find XR Origin! Make sure it's named 'XR Origin (XR Rig)'");
         }
 
+        if (mapController == null)
+        {
+            mapController = FindObjectOfType<VRMapController>();
+        }
+
+        if (mapController != null && metersStep > 0f)
+        {
+            lastStepIndex = Mathf.FloorToInt(mapController.distanceTraveled / metersStep);
+            ApplyWeightsAtDistance(lastStepIndex * metersStep);
+        }
+
         nextSpawnTime = Time.time + spawnInterval + startDelay;
     }
 
     public void ResetSpawner()
-{
-    // Reset timer if it exists
-    if (this.GetType().GetField("timer") != null)
     {
-        this.GetType().GetField("timer").SetValue(this, 0f);
+        if (this.GetType().GetField("timer") != null)
+        {
+            this.GetType().GetField("timer").SetValue(this, 0f);
+        }
+
+        this.enabled = true;
+
+        if (mapController != null && metersStep > 0f)
+        {
+            lastStepIndex = Mathf.FloorToInt(mapController.distanceTraveled / metersStep);
+            ApplyWeightsAtDistance(lastStepIndex * metersStep);
+        }
+
+        Debug.Log("SphereSpawner reset.");
     }
-
-    // Re-enable the spawner
-    this.enabled = true;
-
-    Debug.Log("SphereSpawner reset.");
-}
-
-
 
     void Update()
     {
+        if (mapController != null && metersStep > 0f)
+        {
+            int stepIndex = Mathf.FloorToInt(mapController.distanceTraveled / metersStep);
+            while (stepIndex > lastStepIndex)
+            {
+                lastStepIndex++;
+                ApplyWeightsAtDistance(lastStepIndex * metersStep);
+            }
+        }
+
         if (Time.time >= nextSpawnTime && currentSphereCount < maxSpheres)
         {
             SpawnSphere();
             nextSpawnTime = Time.time + spawnInterval;
+        }
+    }
+
+    void ApplyWeightsAtDistance(float d)
+    {
+        int targetObstacle = 2;
+
+        if (d >= distanceForObstacle6)
+        {
+            targetObstacle = 6;
+        }
+        else if (d >= distanceForObstacle4)
+        {
+            targetObstacle = 4;
+        }
+
+        if (targetObstacle != obstacle)
+        {
+            obstacle = targetObstacle;
+            int p = (10 - obstacle) / 2;
+            first_powerup = p;
+            second_powerup = p;
+
+            Debug.Log($"Distance {d:F0}m -> Weights: obstacle={obstacle}, powerup1={first_powerup}, powerup2={second_powerup} (total={obstacle + first_powerup + second_powerup})");
         }
     }
 
@@ -90,20 +154,28 @@ public class SphereSpawner : MonoBehaviour
         Vector3 spawnPosition = transform.position + randomOffset;
 
         GameObject sphere;
-        if (prefabs != null && prefabs.Length > 0) 
+        if (prefabs != null && prefabs.Length > 0)
         {
-            int prob = Random.Range(0, 10);
-            int rand = prefabs.Length;
-            if (prob <= 2)
+            int total = obstacle + first_powerup + second_powerup;
+            if (total <= 0) total = 1;
+
+            int prob = Random.Range(0, total);
+            int rand;
+
+            if (prob < obstacle)
             {
                 rand = 0;
-            } else if (prob <= 6)
+            }
+            else if (prob < obstacle + first_powerup)
             {
                 rand = 1;
-            } else
+            }
+            else
             {
                 rand = 2;
             }
+
+            rand = Mathf.Clamp(rand, 0, prefabs.Length - 1);
             sphere = Instantiate(prefabs[rand], spawnPosition, Quaternion.identity);
         }
         else
