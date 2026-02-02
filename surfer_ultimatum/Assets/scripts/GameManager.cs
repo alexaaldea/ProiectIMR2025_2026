@@ -10,6 +10,10 @@ public class GameManager : MonoBehaviour
     public GameObject gameOverScreen;
     public TextMeshProUGUI coinsCollectedText;
 
+    [Header("Lives UI")]
+    [Tooltip("TextMeshProUGUI pentru vieți (ex: \"Vieți: 1\"). Pune-l lângă textul de steluțe și fă drag&drop aici.")]
+    public TextMeshProUGUI livesText;
+
     [Header("High Score UI")]
     public TextMeshProUGUI bestScoreText;
 
@@ -20,6 +24,8 @@ public class GameManager : MonoBehaviour
     private bool isGameOver = false;
     private VRMapController map;
     private SphereSpawner spawner;
+
+    private XRCharacterPowerUpHandler powerUpHandler;
 
     private void Awake()
     {
@@ -36,6 +42,20 @@ public class GameManager : MonoBehaviour
         // Cache references
         map = FindObjectOfType<VRMapController>();
         spawner = FindObjectOfType<SphereSpawner>();
+
+        // Lives: find handler and subscribe for instant UI updates
+        powerUpHandler = FindObjectOfType<XRCharacterPowerUpHandler>();
+        if (powerUpHandler != null)
+        {
+            powerUpHandler.OnLivesChanged += OnPlayerLivesChanged;
+            // show initial lives immediately
+            UpdateLivesUI(powerUpHandler.ExtraLives);
+        }
+        else
+        {
+            UpdateLivesUI(0);
+            Debug.LogWarning("[GameManager] XRCharacterPowerUpHandler not found in scene.");
+        }
 
         // Load & show best distance
         float bestDist = PlayerPrefs.GetFloat("BestDistance", 0f);
@@ -54,12 +74,24 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    // Called by powerUpHandler when lives change
+    private void OnPlayerLivesChanged(int newLives)
+    {
+        UpdateLivesUI(newLives);
+    }
+
+    public void UpdateLivesUI(int lives)
+    {
+        if (livesText != null)
+            livesText.text = "Vieți: " + lives;
+    }
+
     public void GameOver()
     {
         if (isGameOver) return;
         isGameOver = true;
 
-        int score = CoinGameManager.Instance.currentCoins;
+        int score = (CoinGameManager.Instance != null) ? CoinGameManager.Instance.currentCoins : 0;
 
         // Stop movement & spawner
         if (map != null) map.StopMovement();
@@ -70,7 +102,7 @@ public class GameManager : MonoBehaviour
             UpdateBestDistance(map.distanceTraveled);
 
         // Show final distance
-        if (distanceText != null)
+        if (distanceText != null && map != null)
             distanceText.text = "Distanță: " + map.distanceTraveled.ToString("F1") + " m";
 
         // Update best score
@@ -124,5 +156,11 @@ public class GameManager : MonoBehaviour
     {
         Scene scene = SceneManager.GetActiveScene();
         SceneManager.LoadScene(scene.name);
+    }
+
+    private void OnDestroy()
+    {
+        if (powerUpHandler != null)
+            powerUpHandler.OnLivesChanged -= OnPlayerLivesChanged;
     }
 }
