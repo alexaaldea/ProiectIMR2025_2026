@@ -1,97 +1,121 @@
 ﻿using UnityEngine;
 
-[RequireComponent(typeof(Collider))]
-[RequireComponent(typeof(Rigidbody))]
-public class XRCharacterCollisionHandler : MonoBehaviour
+/// <summary>
+/// Detectează două ziduri (tag = "Wall") din aceea��i "bandă" și blochează poziția jucătorului
+/// între limitele laterale. Funcționează cu transform, CharacterController sau Rigidbody.
+/// </summary>
+[DisallowMultipleComponent]
+public class PlayerBoundsLimiterAuto : MonoBehaviour
 {
-    [Header("Optional (dacă vrei să setezi manual)")]
-    [SerializeField] private XRCharacterPowerUpHandler powerUpHandler;
+    [Tooltip("Tag folosit pe obiectele wall. Asigură-te că Left/Right walls au acest tag.")]
+    public string wallTag = "Wall";
 
-    private bool isDead = false;
+    [Tooltip("Margină internă față de perete (în metri) — jucătorul nu va atinge direct peretele.")]
+    public float innerMargin = 0.05f;
 
-    private void Reset()
+    [Tooltip("Dacă true, scriptul corectează poziția folosind CharacterController.Move când e disponibil.")]
+    public bool useCharacterControllerIfPresent = true;
+
+    private float leftLimitX = float.NegativeInfinity;
+    private float rightLimitX = float.PositiveInfinity;
+    private CharacterController cc;
+    private Rigidbody rb;
+    private bool initialized = false;
+
+    void Awake()
     {
-        // Setări utile când atașezi componenta prima dată
-        Collider col = GetComponent<Collider>();
-        if (col != null) col.isTrigger = false;
-
-        Rigidbody rb = GetComponent<Rigidbody>();
-        if (rb != null)
-        {
-            rb.isKinematic = false;
-            rb.useGravity = false;
-        }
+        cc = GetComponent<CharacterController>();
+        rb = GetComponent<Rigidbody>();
     }
 
-    private void Awake()
+    void Start()
     {
-        ResolvePowerUpHandlerIfNeeded();
+        InitializeLimits();
     }
 
-    // În caz că referința lipsește, încercăm câteva variante și logăm
-    private void ResolvePowerUpHandlerIfNeeded()
+    // Caută wall‑urile din scenă și calculează min/max X
+    public void InitializeLimits()
     {
-        if (powerUpHandler == null)
+        GameObject[] walls = GameObject.FindGameObjectsWithTag(wallTag);
+        if (walls == null || walls.Length == 0)
         {
-            powerUpHandler = GetComponent<XRCharacterPowerUpHandler>()
-                           ?? GetComponentInParent<XRCharacterPowerUpHandler>()
-                           ?? GetComponentInChildren<XRCharacterPowerUpHandler>()
-                           ?? FindObjectOfType<XRCharacterPowerUpHandler>();
-
-            Debug.Log($"[CollisionHandler] powerUpHandler resolved to: {(powerUpHandler == null ? "null" : powerUpHandler.gameObject.name)} on {gameObject.name}");
-        }
-    }
-
-    private void OnCollisionEnter(Collision collision)
-    {
-        if (isDead) return;
-
-        GameObject hit = collision.gameObject;
-        Debug.Log($"[CollisionHandler] Am lovit: {hit.name} (tag: {hit.tag})");
-
-        // Mori doar dacă obiectul are tag "Obstacle" (conform codului tău)
-        if (hit.CompareTag("Obstacle"))
-        {
-            TryKillPlayer($"Lovit de obstacle: {hit.name}");
-        }
-    }
-
-    private void TryKillPlayer(string reason)
-    {
-        if (isDead) return;
-
-        // Asigurăm referința
-        ResolvePowerUpHandlerIfNeeded();
-
-        if (powerUpHandler != null)
-            Debug.Log($"[CollisionHandler] HasShield={powerUpHandler.HasShield()} ExtraLives={powerUpHandler.ExtraLives}");
-
-        // 1) Dacă ai shield activ -> nu mori
-        if (powerUpHandler != null && powerUpHandler.HasShield())
-        {
-            Debug.Log("[CollisionHandler] Protejat de shield activ, NU mori. Motiv: " + reason);
+            Debug.LogWarning("[PlayerBoundsLimiterAuto] Nu am găsit walls cu tag='" + wallTag + "'. Setează tagul sau adaugă wall-urile.");
             return;
         }
 
-        // 2) Dacă ai o viață extra, o consumăm și nu mori
-        if (powerUpHandler != null && powerUpHandler.ConsumeExtraLife())
+        float minX = float.PositiveInfinity;
+        float maxX = float.NegativeInfinity;
+        foreach (var w in walls)
         {
-            Debug.Log("[CollisionHandler] Extra life disponibilă — consumată. Continuăm jocul. Motiv: " + reason);
-            // Poți adăuga efecte vizuale/sunet scurt aici
-            return;
+            // Folosim bounding box-ul (Collider) dacă există, altfel transform.position
+            Collider col = w.GetComponent<Collider>();
+            if (col != null)
+            {
+                Bounds b = col.bounds;
+                minX = Mathf.Min(minX, b.min.x);
+                maxX = Mathf.Max(maxX, b.max.x);
+            }
+            else
+            {
+                float wx = w.transform.position.x;
+                minX = Mathf.Min(minX, wx);
+                maxX = Mathf.Max(maxX, wx);
+            }
         }
 
-        // 3) Altfel -> mori
-        isDead = true;
-        Debug.LogWarning("[CollisionHandler] PLAYER KILLED! Motiv: " + reason);
+        // Estimăm limitele pistei între cele două ziduri: leftLimit = minX, rightLimit = maxX
+        leftLimitX = minX + innerMargin;
+        rightLimitX = maxX - innerMargin;
 
-        if (GameManager.Instance != null)
+        if (leftLimitX >= rightLimitX)
+            Debug.LogWarning("[PlayerBoundsLimiterAuto] Limitele calculate sunt invalide. Verifică poziția/fizica wall-urilor.");
+
+        initialized = true;
+    }
+
+    void Update()
+    {
+        if (!initialized) InitializeLimits();
+        if (!initialized) return;
+
+        Vector3 pos = transform.position;
+        float clampedX = Mathf.Clamp(pos.x, leftLimitX, rightLimitX);
+        if (Mathf.Approximately(clampedX, pos.x)) return; // în interior, nu corectăm
+
+        Vector3 desired = new Vector3(clampedX, pos.y, pos.z);
+        Vector3 delta = desired - pos;
+
+        // Preferăm CharacterController.Move dacă există (nu modificăm direct transform în cazul CC)
+        if (useCharacterControllerIfPresent && cc != null)
         {
-            GameManager.Instance.GameOver();
+            // cc.Move așteaptă un delta în world space
+            cc.Move(delta);
+        }
+        else if (rb != null && !rb.isKinematic)
+        {
+            // Folosim MovePosition pentru Rigidbody din FixedUpdate — dar putem aplica imediat aici:
+            // (scurt fallback) setăm poziția fizică, dar păstrăm integritatea fizicii
+            rb.position = desired;
+            rb.velocity = Vector3.zero;
         }
         else
         {
-            Debug.LogError("[CollisionHandler] GameManager.Instance este null. Pune un GameManager în scenă.");
+            // fallback: setăm transform direct
+            transform.position = desired;
+        }
+    }
+
+    // Editor gizmo: afișăm limitele
+    void OnDrawGizmosSelected()
+    {
+        Gizmos.color = Color.yellow;
+        if (leftLimitX != float.NegativeInfinity && rightLimitX != float.PositiveInfinity)
+        {
+            float h = 2f;
+            Gizmos.DrawLine(new Vector3(leftLimitX, transform.position.y - h, transform.position.z - 50),
+                            new Vector3(leftLimitX, transform.position.y + h, transform.position.z + 50));
+            Gizmos.DrawLine(new Vector3(rightLimitX, transform.position.y - h, transform.position.z - 50),
+                            new Vector3(rightLimitX, transform.position.y + h, transform.position.z + 50));
         }
     }
 }
