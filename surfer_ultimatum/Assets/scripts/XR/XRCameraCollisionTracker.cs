@@ -240,11 +240,15 @@ public class XRCameraCollisionTracker : MonoBehaviour
         if (powerUpHandler != null && powerUpHandler.HasShield())
         {
             bool consumed = TryConsumeShieldViaReflection();
-            if (logCollisions) Debug.Log($"[CameraTracker] Shield active -> {(consumed ? "consumed" : "could not be consumed (no method found)")}. Hit absorbed (feedback shown).");
-            ShowNotification("Shield absorbed the hit!");
-            // Optional: if you have a shield-hit sound method, call it here.
-            // Example (uncomment if exists): if (AudioManager.Instance != null) AudioManager.Instance.PlayShieldHitSound();
-            return; // important: do not continue to extra-life / death handling
+            if (logCollisions) Debug.Log($"[CameraTracker] Shield active -> {(consumed ? "consumed" : "could not be consumed (no method found)")}. Hit {(consumed ? "absorbed" : "NOT absorbed, falling through")} (feedback shown).");
+            ShowNotification(consumed ? "Shield absorbed the hit!" : "Shield unavailable, hit applied!");
+            if (consumed)
+            {
+                // important: do not continue to extra-life / death handling
+                return;
+            }
+            // if we couldn't consume the shield (reflection failed), fall through and continue
+            // to extra life / death handling so the hit is applied.
         }
 
         // 3) consume extra life if any (this preserves existing API if present)

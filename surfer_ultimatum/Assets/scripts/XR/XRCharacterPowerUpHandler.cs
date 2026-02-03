@@ -18,6 +18,10 @@ public class XRCharacterPowerUpHandler : MonoBehaviour
     private bool isShieldActive = false;
     private bool isSlowTimeActive = false;
 
+    // Keep a reference to the running coroutine(s)
+    private Coroutine shieldCoroutine = null;
+    private Coroutine slowTimeCoroutine = null;
+
     // Properties
     public int ExtraLives => extraLives;
     public bool HasShieldActive => isShieldActive;
@@ -34,12 +38,15 @@ public class XRCharacterPowerUpHandler : MonoBehaviour
         switch (type)
         {
             case PowerUpType.Shield:
+                // Dacă vrei ca shield-ul să nu adauge extra life automat, mută/înlătură AddExtraLife
                 AddExtraLife(1);
-                if (!isShieldActive) StartCoroutine(ShieldCoroutine(duration));
+                if (!isShieldActive)
+                    shieldCoroutine = StartCoroutine(ShieldCoroutine(duration));
                 break;
 
             case PowerUpType.SlowTime:
-                if (!isSlowTimeActive) StartCoroutine(SlowTimeCoroutine(duration));
+                if (!isSlowTimeActive)
+                    slowTimeCoroutine = StartCoroutine(SlowTimeCoroutine(duration));
                 break;
         }
     }
@@ -50,11 +57,14 @@ public class XRCharacterPowerUpHandler : MonoBehaviour
         if (shieldVisual != null) shieldVisual.SetActive(true);
         Debug.Log($"[PowerUpHandler] Shield enabled for {duration} seconds.");
 
-        if (duration > 0f) yield return new WaitForSeconds(duration);
-        else yield return null;
+        if (duration > 0f)
+            yield return new WaitForSeconds(duration);
+        else
+            yield return null;
 
         if (shieldVisual != null) shieldVisual.SetActive(false);
         isShieldActive = false;
+        shieldCoroutine = null;
         Debug.Log("[PowerUpHandler] Shield expired.");
     }
 
@@ -73,6 +83,7 @@ public class XRCharacterPowerUpHandler : MonoBehaviour
         Time.timeScale = originalTimeScale;
         Time.fixedDeltaTime = originalFixedDeltaTime;
         isSlowTimeActive = false;
+        slowTimeCoroutine = null;
     }
 
     // Extra lives API
@@ -107,5 +118,29 @@ public class XRCharacterPowerUpHandler : MonoBehaviour
     public bool HasShield()
     {
         return isShieldActive;
+    }
+
+    // NEW: Consumă scutul imediat (apel public folosit de tracker)
+    // Returnează true dacă s-a consumat/închis un scut activ
+    public bool ConsumeShield()
+    {
+        if (!isShieldActive) return false;
+
+        // Oprește coroutine-ul dacă rulează
+        if (shieldCoroutine != null)
+        {
+            try { StopCoroutine(shieldCoroutine); } catch { }
+            shieldCoroutine = null;
+        }
+
+        isShieldActive = false;
+
+        if (shieldVisual != null)
+        {
+            try { shieldVisual.SetActive(false); } catch { }
+        }
+
+        Debug.Log("[PowerUpHandler] Shield consumed via ConsumeShield().");
+        return true;
     }
 }
